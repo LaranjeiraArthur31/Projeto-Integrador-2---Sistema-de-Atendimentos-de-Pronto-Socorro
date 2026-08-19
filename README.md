@@ -42,14 +42,14 @@ Projeto-Integrador-2---Sistema-de-Atendimentos-de-Pronto-Socorro/
 ```text
 pronto-socorro/
 ├── web/
-│   ├── css/
-│   ├── js/
+│   ├── style.css
+│   ├── pages.js
 │   ├── recepcao.html
 │   ├── triagem.html
 │   └── medico.html
 ├── services/
-│   ├── controllers/
-│   ├── routes/
+│   ├── controllers.js
+│   ├── routes.js
 │   └── server.js
 ├── database/
 │   ├── schema.sql
