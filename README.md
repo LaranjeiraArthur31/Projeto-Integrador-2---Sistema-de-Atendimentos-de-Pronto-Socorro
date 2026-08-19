@@ -39,6 +39,7 @@ O sistema permite:
 
 Projeto-Integrador-2---Sistema-de-Atendimentos-de-Pronto-Socorro/
 
+```text
 pronto-socorro/
 ├── web/
 │   ├── css/
@@ -46,18 +47,16 @@ pronto-socorro/
 │   ├── recepcao.html
 │   ├── triagem.html
 │   └── medico.html
-│
 ├── services/
 │   ├── controllers/
 │   ├── routes/
 │   └── server.js
-│
 ├── database/
 │   ├── schema.sql
 │   └── seeds.sql
-│
-├── .gitignore  
+├── .gitignore
 └── README.md
+```
 ---
 
 # Como executar o projeto
