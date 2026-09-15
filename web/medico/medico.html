@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atendimento Médico — Pronto Socorro</title>
+<link rel="stylesheet" href="../medico//medico.css">
+</head>
+<body>
+
+<div class="app">
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo">🏥</div>
+    <h1>Pronto Socorro<br>Painel de Atendimentos</h1>
+  </div>
+  <nav>
+    <a href="recepcao.html"><span class="ic">📋</span>Recepção</a>
+    <a href="triagem.html"><span class="ic">🩺</span>Triagem</a>
+    <a href="painel.html"><span class="ic">📺</span>Painel de Atendimento</a>
+    <a href="medico.html" class="active"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
+  </nav>
+  <div class="relogio" id="relogio"></div>
+</aside>
+
+<main>
+  <h2 class="titulo">Atendimento médico</h2>
+  <p class="lead">Consulta dos dados da triagem, lançamento de medicações e confirmação do atendimento.</p>
+
+  <div class="card">
+    <h2>Selecionar paciente</h2>
+    <div class="toolbar">
+      <select id="medico-select-atendimento" style="min-width:280px; max-width:100%; flex:1;">
+        <option value="">Selecione um paciente aguardando atendimento...</option>
+      </select>
+    </div>
+
+    <div id="medico-detalhe" style="display:none;">
+      <div class="grid" style="margin-bottom:16px;">
+        <div class="detail-row"><span>Nº Atendimento</span><span id="md-numero"></span></div>
+        <div class="detail-row"><span>Paciente</span><span id="md-nome"></span></div>
+        <div class="detail-row"><span>Data de nascimento</span><span id="md-nasc"></span></div>
+        <div class="detail-row"><span>Classificação Manchester</span><span id="md-classificacao"></span></div>
+        <div class="detail-row"><span>Pressão / Temp / BPM</span><span id="md-vitais"></span></div>
+        <div class="detail-row"><span>Queixas</span><span id="md-queixas"></span></div>
+      </div>
+
+      <form id="form-medico">
+        <div class="field full">
+          <label>Medicações prescritas *</label>
+          <textarea id="md-medicacoes" placeholder="Ex: Dipirona 1g EV, Soro fisiológico 500ml..." required></textarea>
+        </div>
+        <div class="field full" style="margin-top:12px;">
+          <label>Observações da consulta</label>
+          <textarea id="md-observacoes" placeholder="Diagnóstico, orientações, encaminhamentos..."></textarea>
+        </div>
+        <div class="actions">
+          <button type="submit" class="btn btn-success">Confirmar Atendimento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Atendimentos confirmados</h2>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Nº Atendimento</th><th>Paciente</th><th>Classificação</th><th>Medicações</th></tr></thead>
+        <tbody id="tabela-confirmados"></tbody>
+      </table>
+      <div class="empty" id="confirmados-empty" style="display:none;">Nenhum atendimento confirmado ainda.</div>
+    </div>
+  </div>
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="comum.js"></script>
+<script>
+/* ============================================================
+   ATENDIMENTO MÉDICO — lógica específica desta página
+   ============================================================ */
+function renderMedico(){
+  const select = document.getElementById('medico-select-atendimento');
+  const filaAtual = select.value;
+  select.innerHTML = '<option value="">Selecione um paciente aguardando atendimento...</option>';
+
+  const fila = atendimentos
+    .filter(a=> a.status === 'aguardando-medico')
+    .sort((x,y)=> MANCHESTER_ORDEM[x.triagem.classificacao] - MANCHESTER_ORDEM[y.triagem.classificacao]);
+
+  fila.forEach(a=>{
+    const opt = document.createElement('option');
+    opt.value = a.id;
+    opt.textContent = `${a.id} — ${a.nome} (${MANCHESTER_LABEL[a.triagem.classificacao]})`;
+    select.appendChild(opt);
+  });
+
+  if(fila.some(a=>a.id === filaAtual)){
+    select.value = filaAtual;
+  } else {
+    document.getElementById('medico-detalhe').style.display = 'none';
+  }
+
+  renderConfirmados();
+}
+
+document.getElementById('medico-select-atendimento').addEventListener('change', e=>{
+  const id = e.target.value;
+  const detalhe = document.getElementById('medico-detalhe');
+  if(!id){ detalhe.style.display = 'none'; return; }
+  const a = atendimentos.find(x=>x.id===id);
+  if(!a) return;
+
+  document.getElementById('md-numero').textContent = a.id;
+  document.getElementById('md-nome').textContent = a.nome;
+  document.getElementById('md-nasc').textContent = formatarData(a.nascimento) + ' (' + calcularIdade(a.nascimento) + ')';
+  document.getElementById('md-classificacao').innerHTML = `<span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span>`;
+  document.getElementById('md-vitais').textContent = `${a.triagem.pa} · ${a.triagem.temp}°C · ${a.triagem.bpm} bpm`;
+  document.getElementById('md-queixas').textContent = a.triagem.queixas;
+
+  document.getElementById('form-medico').reset();
+  detalhe.style.display = 'block';
+  detalhe.dataset.id = id;
+});
+
+document.getElementById('form-medico').addEventListener('submit', e=>{
+  e.preventDefault();
+  const id = document.getElementById('medico-detalhe').dataset.id;
+  const a = atendimentos.find(x=>x.id===id);
+  if(!a) return;
+
+  a.medico = {
+    medicacoes: document.getElementById('md-medicacoes').value.trim(),
+    observacoes: document.getElementById('md-observacoes').value.trim()
+  };
+  a.status = 'confirmado';
+  salvarAtendimentos(atendimentos);
+
+  document.getElementById('medico-detalhe').style.display = 'none';
+  toast('Atendimento ' + id + ' confirmado com sucesso!');
+  renderMedico();
+});
+
+function renderConfirmados(){
+  const confirmados = atendimentos.filter(a=>a.status==='confirmado');
+  const tbody = document.getElementById('tabela-confirmados');
+  tbody.innerHTML = '';
+  document.getElementById('confirmados-empty').style.display = confirmados.length ? 'none' : 'block';
+  confirmados.forEach(a=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${a.id}</strong></td>
+      <td>${a.nome}</td>
+      <td><span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span></td>
+      <td>${a.medico.medicacoes}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+renderMedico();
+</script>
+</body>
+</html>

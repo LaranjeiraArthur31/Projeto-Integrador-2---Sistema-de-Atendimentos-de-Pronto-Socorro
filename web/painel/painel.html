@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Atendimento — Pronto Socorro</title>
+<link rel="stylesheet" href="painel.css">
+</head>
+<body>
+
+<div class="app">
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo">🏥</div>
+    <h1>Pronto Socorro<br>Painel de Atendimentos</h1>
+  </div>
+  <nav>
+    <a href="recepcao.html"><span class="ic">📋</span>Recepção</a>
+    <a href="triagem.html"><span class="ic">🩺</span>Triagem</a>
+    <a href="painel.html" class="active"><span class="ic">📺</span>Painel de Atendimento</a>
+    <a href="medico.html"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
+  </nav>
+  <div class="relogio" id="relogio"></div>
+</aside>
+
+<main>
+  <h2 class="titulo">Painel de atendimento</h2>
+  <p class="lead">Fila de espera para o médico, ordenada por gravidade (vermelho → azul) e, dentro de cada cor, por ordem de chegada.</p>
+
+  <div class="card">
+    <h2>Fila atual</h2>
+    <div class="painel-fila" id="painel-fila"></div>
+    <div class="empty" id="painel-empty" style="display:none;">Nenhum paciente aguardando atendimento médico.</div>
+  </div>
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="comum.js"></script>
+<script>
+/* ============================================================
+   PAINEL DE ATENDIMENTO — lógica específica desta página
+   ============================================================ */
+function renderPainel(){
+  const fila = atendimentos
+    .filter(a=> a.status === 'aguardando-medico' || a.status === 'em-atendimento')
+    .sort((x,y)=>{
+      const ox = MANCHESTER_ORDEM[x.triagem.classificacao];
+      const oy = MANCHESTER_ORDEM[y.triagem.classificacao];
+      if(ox !== oy) return ox - oy;
+      return new Date(x.criadoEm) - new Date(y.criadoEm);
+    });
+
+  const cont = document.getElementById('painel-fila');
+  cont.innerHTML = '';
+  document.getElementById('painel-empty').style.display = fila.length ? 'none' : 'block';
+
+  fila.forEach((a, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'painel-item ' + a.triagem.classificacao;
+    div.innerHTML = `
+      <div class="pi-pos">${idx+1}º</div>
+      <div class="pi-info">
+        <div class="pi-nome">${a.nome} <span>— ${a.id}</span></div>
+        <div class="pi-sub">Nascimento: ${formatarData(a.nascimento)} (${calcularIdade(a.nascimento)}) · Queixa: ${a.triagem.queixas}</div>
+      </div>
+      <span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span>
+    `;
+    cont.appendChild(div);
+  });
+}
+
+renderPainel();
+// Atualiza a fila automaticamente a cada 5s, caso outra aba (triagem/médico) mude os dados
+setInterval(renderPainel, 5000);
+</script>
+</body>
+</html>

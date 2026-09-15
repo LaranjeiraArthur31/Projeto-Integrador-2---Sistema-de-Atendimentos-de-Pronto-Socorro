@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Triagem — Pronto Socorro</title>
+<link rel="stylesheet" href="triagem.css">
+</head>
+<body>
+
+<div class="app">
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo">🏥</div>
+    <h1>Pronto Socorro<br>Painel de Atendimentos</h1>
+  </div>
+  <nav>
+    <a href="./../recepcao/recepcao.html"><span class="ic">📋</span>Recepção</a>
+    <a href="./../triagem//triagem.html" class="active"><span class="ic">🩺</span>Triagem</a>
+    <a href="./../painel//painel.html"><span class="ic">📺</span>Painel de Atendimento</a>
+    <a href="./../medico//medico.html"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
+  </nav>
+  <div class="relogio" id="relogio"></div>
+</aside>
+
+<main>
+  <h2 class="titulo">Triagem</h2>
+  <p class="lead">Classificação de risco pela enfermagem segundo o Protocolo de Manchester, após a chegada do paciente.</p>
+
+  <div class="card">
+    <h2>Fila para triagem</h2>
+    <div style="overflow-x:auto;">
+      <table id="tabela-triagem-fila">
+        <thead><tr><th>Nº Atendimento</th><th>Paciente</th><th>Chegada</th><th>Ação</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty" id="triagem-fila-empty" style="display:none;">Nenhum paciente aguardando triagem.</div>
+    </div>
+  </div>
+
+  <div class="card" id="card-form-triagem" style="display:none;">
+    <h2>Registrar triagem — <span id="triagem-paciente-nome"></span></h2>
+    <form id="form-triagem">
+      <input type="hidden" id="triagem-atendimento-id">
+
+      <div class="grupo">
+        <p class="grupo-titulo">Sinais vitais</p>
+        <div class="grid">
+          <div class="field">
+            <label>Pressão arterial (ex: 120/80 mmHg) *</label>
+            <input type="text" id="tri-pa" required>
+          </div>
+          <div class="field">
+            <label>Temperatura corporal (°C) *</label>
+            <input type="text" id="tri-temp" required>
+          </div>
+          <div class="field">
+            <label>Batimentos cardíacos (bpm) *</label>
+            <input type="text" id="tri-bpm" required>
+          </div>
+        </div>
+      </div>
+
+      <div class="grupo">
+        <p class="grupo-titulo">Avaliação</p>
+        <div class="grid">
+          <div class="field full">
+            <label>Principais queixas *</label>
+            <textarea id="tri-queixas" placeholder="Ex: dor de cabeça, náusea, dor muscular..." required></textarea>
+          </div>
+          <div class="field full">
+            <label>Classificação — Protocolo de Manchester *</label>
+            <select id="tri-classificacao" required>
+              <option value="">Selecione a classificação...</option>
+              <option value="vermelho">🔴 Vermelho — Emergência (atendimento imediato)</option>
+              <option value="laranja">🟠 Laranja — Muito urgente (até 10 min)</option>
+              <option value="amarelo">🟡 Amarelo — Urgente (até 60 min)</option>
+              <option value="verde">🟢 Verde — Pouco urgente (até 120 min)</option>
+              <option value="azul">🔵 Azul — Não urgente (até 240 min)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">Concluir Triagem</button>
+        <button type="button" class="btn btn-secondary" id="btn-cancelar-triagem">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Triagens já realizadas</h2>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Nº Atendimento</th><th>Paciente</th><th>Classificação</th><th>Queixas</th></tr></thead>
+        <tbody id="tabela-triagem-feitas"></tbody>
+      </table>
+      <div class="empty" id="triagem-feitas-empty" style="display:none;">Nenhuma triagem concluída ainda.</div>
+    </div>
+  </div>
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="comum.js"></script>
+<script>
+/* ============================================================
+   TRIAGEM — lógica específica desta página
+   ============================================================ */
+function renderTriagem(){
+  const fila = atendimentos.filter(a=>a.status==='aguardando-triagem');
+  const tbody = document.querySelector('#tabela-triagem-fila tbody');
+  tbody.innerHTML = '';
+  document.getElementById('triagem-fila-empty').style.display = fila.length ? 'none' : 'block';
+  fila.forEach(a=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${a.id}</strong></td>
+      <td>${a.nome}</td>
+      <td>${new Date(a.criadoEm).toLocaleString('pt-BR')}</td>
+      <td><button class="btn btn-primary" style="padding:6px 12px;font-size:12px;" onclick="abrirTriagem('${a.id}')">Iniciar Triagem</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const feitas = atendimentos.filter(a=>a.triagem);
+  const tbody2 = document.getElementById('tabela-triagem-feitas');
+  tbody2.innerHTML = '';
+  document.getElementById('triagem-feitas-empty').style.display = feitas.length ? 'none' : 'block';
+  feitas.forEach(a=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${a.id}</strong></td>
+      <td>${a.nome}</td>
+      <td><span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span></td>
+      <td>${a.triagem.queixas}</td>
+    `;
+    tbody2.appendChild(tr);
+  });
+}
+
+function abrirTriagem(id){
+  const a = atendimentos.find(x=>x.id===id);
+  if(!a) return;
+  document.getElementById('triagem-atendimento-id').value = id;
+  document.getElementById('triagem-paciente-nome').textContent = a.nome + ' (' + a.id + ')';
+  document.getElementById('card-form-triagem').style.display = 'block';
+  document.getElementById('form-triagem').reset();
+  document.getElementById('triagem-atendimento-id').value = id;
+  document.getElementById('card-form-triagem').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+document.getElementById('btn-cancelar-triagem').addEventListener('click', ()=>{
+  document.getElementById('card-form-triagem').style.display = 'none';
+});
+
+document.getElementById('form-triagem').addEventListener('submit', e=>{
+  e.preventDefault();
+  const id = document.getElementById('triagem-atendimento-id').value;
+  const a = atendimentos.find(x=>x.id===id);
+  if(!a) return;
+  a.triagem = {
+    pa: document.getElementById('tri-pa').value.trim(),
+    temp: document.getElementById('tri-temp').value.trim(),
+    bpm: document.getElementById('tri-bpm').value.trim(),
+    queixas: document.getElementById('tri-queixas').value.trim(),
+    classificacao: document.getElementById('tri-classificacao').value
+  };
+  a.status = 'aguardando-medico';
+  salvarAtendimentos(atendimentos);
+  document.getElementById('card-form-triagem').style.display = 'none';
+  renderTriagem();
+  toast('Triagem do atendimento ' + id + ' concluída!');
+});
+
+renderTriagem();
+</script>
+</body>
+</html>

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recepção — Pronto Socorro</title>
+<link rel="stylesheet" href="recepcao.css">
+</head>
+<body>
+
+<div class="app">
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo">🏥</div>
+    <h1>Pronto Socorro<br>Painel de Atendimentos</h1>
+  </div>
+  <nav>
+    <a href="recepcao.html" class="active"><span class="ic">📋</span>Recepção</a>
+    <a href="triagem.html"><span class="ic">🩺</span>Triagem</a>
+    <a href="painel.html"><span class="ic">📺</span>Painel de Atendimento</a>
+    <a href="medico.html"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
+  </nav>
+  <div class="relogio" id="relogio"></div>
+</aside>
+
+<main>
+  <h2 class="titulo">Recepção</h2>
+  <p class="lead">Cadastro de pacientes na chegada e gestão dos atendimentos ainda não confirmados pelo médico.</p>
+
+  <div class="card">
+    <h2>Novo atendimento</h2>
+    <form id="form-recepcao">
+
+      <div class="grupo">
+        <p class="grupo-titulo">Dados pessoais</p>
+        <div class="grid">
+          <div class="field full">
+            <label>Nome completo *</label>
+            <input type="text" id="rec-nome" required>
+          </div>
+          <div class="field">
+            <label>Data de nascimento *</label>
+            <input type="date" id="rec-nascimento" required>
+          </div>
+          <div class="field">
+            <label>CPF *</label>
+            <input type="text" id="rec-cpf" placeholder="000.000.000-00" required>
+          </div>
+          <div class="field">
+            <label>RG</label>
+            <input type="text" id="rec-rg" placeholder="00.000.000-0">
+          </div>
+        </div>
+      </div>
+
+      <div class="grupo">
+        <p class="grupo-titulo">Filiação</p>
+        <div class="grid">
+          <div class="field">
+            <label>Nome do pai</label>
+            <input type="text" id="rec-pai">
+          </div>
+          <div class="field">
+            <label>Nome da mãe</label>
+            <input type="text" id="rec-mae">
+          </div>
+        </div>
+      </div>
+
+      <div class="grupo">
+        <p class="grupo-titulo">Contato</p>
+        <div class="grid">
+          <div class="field full">
+            <label>Endereço</label>
+            <input type="text" id="rec-endereco" placeholder="Rua, número, bairro, cidade">
+          </div>
+          <div class="field">
+            <label>Telefone</label>
+            <input type="text" id="rec-telefone" placeholder="(00) 00000-0000">
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">Gerar Atendimento</button>
+        <button type="reset" class="btn btn-secondary">Limpar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Atendimentos da recepção</h2>
+    <div class="toolbar">
+      <input type="text" id="rec-busca" placeholder="Buscar por nome ou número do atendimento...">
+      <span id="rec-total" style="font-size:13px;color:var(--texto-suave);"></span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="tabela-recepcao">
+        <thead>
+          <tr><th>Nº Atendimento</th><th>Paciente</th><th>Nascimento</th><th>CPF</th><th>Status</th><th>Ações</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty" id="rec-empty" style="display:none;">Nenhum atendimento cadastrado ainda.</div>
+    </div>
+  </div>
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h3 id="modal-title">Confirmar ação</h3>
+    <p id="modal-text"></p>
+    <div class="actions">
+      <button class="btn btn-secondary" id="modal-cancel">Cancelar</button>
+      <button class="btn btn-danger" id="modal-confirm">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script src="comum.js"></script>
+<script>
+/* ============================================================
+   RECEPÇÃO — lógica específica desta página
+   ============================================================ */
+const formRecepcao = document.getElementById('form-recepcao');
+formRecepcao.addEventListener('submit', e=>{
+  e.preventDefault();
+  const novo = {
+    id: proximoNumero(),
+    nome: document.getElementById('rec-nome').value.trim(),
+    nascimento: document.getElementById('rec-nascimento').value,
+    rg: document.getElementById('rec-rg').value.trim(),
+    cpf: document.getElementById('rec-cpf').value.trim(),
+    pai: document.getElementById('rec-pai').value.trim(),
+    mae: document.getElementById('rec-mae').value.trim(),
+    endereco: document.getElementById('rec-endereco').value.trim(),
+    telefone: document.getElementById('rec-telefone').value.trim(),
+    status: 'aguardando-triagem',
+    criadoEm: new Date().toISOString(),
+    triagem: null,
+    medico: null
+  };
+  atendimentos.unshift(novo);
+  salvarAtendimentos(atendimentos);
+  formRecepcao.reset();
+  renderRecepcao();
+  toast('Atendimento ' + novo.id + ' gerado com sucesso!');
+});
+
+document.getElementById('rec-busca').addEventListener('input', renderRecepcao);
+
+function renderRecepcao(){
+  const termo = (document.getElementById('rec-busca').value || '').toLowerCase();
+  const tbody = document.querySelector('#tabela-recepcao tbody');
+  tbody.innerHTML = '';
+  const lista = atendimentos.filter(a =>
+    a.nome.toLowerCase().includes(termo) || a.id.toLowerCase().includes(termo)
+  );
+  document.getElementById('rec-total').textContent = atendimentos.length + ' atendimento(s) no total';
+  document.getElementById('rec-empty').style.display = lista.length ? 'none' : 'block';
+
+  lista.forEach(a=>{
+    const tr = document.createElement('tr');
+    const podeEditar = (a.status === 'aguardando-triagem');
+    tr.innerHTML = `
+      <td><strong>${a.id}</strong></td>
+      <td>${a.nome}</td>
+      <td>${a.nascimento ? formatarData(a.nascimento) : '-'}</td>
+      <td>${a.cpf || '-'}</td>
+      <td><span class="badge ${a.status}">${STATUS_LABEL[a.status]}</span></td>
+      <td>
+        <button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="verAtendimento('${a.id}')">Ver</button>
+        ${podeEditar ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="editarAtendimento('${a.id}')">Editar</button>
+        <button class="btn btn-danger" style="padding:6px 10px;font-size:12px;" onclick="cancelarAtendimento('${a.id}')">Cancelar</button>` : ''}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function verAtendimento(id){
+  const a = atendimentos.find(x=>x.id===id);
+  if(!a) return;
+  let info = `Nº: ${a.id}\nPaciente: ${a.nome}\nNascimento: ${a.nascimento?formatarData(a.nascimento):'-'} (${calcularIdade(a.nascimento)})\nCPF: ${a.cpf||'-'} | RG: ${a.rg||'-'}\nPai: ${a.pai||'-'} | Mãe: ${a.mae||'-'}\nEndereço: ${a.endereco||'-'}\nTelefone: ${a.telefone||'-'}\nStatus: ${STATUS_LABEL[a.status]}`;
+  if(a.triagem){
+    info += `\n\n--- Triagem ---\nPA: ${a.triagem.pa} | Temp: ${a.triagem.temp} | BPM: ${a.triagem.bpm}\nQueixas: ${a.triagem.queixas}\nClassificação: ${MANCHESTER_LABEL[a.triagem.classificacao]}`;
+  }
+  if(a.medico){
+    info += `\n\n--- Atendimento Médico ---\nMedicações: ${a.medico.medicacoes}\nObservações: ${a.medico.observacoes || '-'}`;
+  }
+  alert(info);
+}
+
+function editarAtendimento(id){
+  const a = atendimentos.find(x=>x.id===id);
+  if(!a) return;
+  document.getElementById('rec-nome').value = a.nome;
+  document.getElementById('rec-nascimento').value = a.nascimento;
+  document.getElementById('rec-rg').value = a.rg;
+  document.getElementById('rec-cpf').value = a.cpf;
+  document.getElementById('rec-pai').value = a.pai;
+  document.getElementById('rec-mae').value = a.mae;
+  document.getElementById('rec-endereco').value = a.endereco;
+  document.getElementById('rec-telefone').value = a.telefone;
+
+  atendimentos = atendimentos.filter(x=>x.id!==id);
+  formRecepcao.onsubmit = (e)=>{
+    e.preventDefault();
+    const editado = {
+      ...a,
+      nome: document.getElementById('rec-nome').value.trim(),
+      nascimento: document.getElementById('rec-nascimento').value,
+      rg: document.getElementById('rec-rg').value.trim(),
+      cpf: document.getElementById('rec-cpf').value.trim(),
+      pai: document.getElementById('rec-pai').value.trim(),
+      mae: document.getElementById('rec-mae').value.trim(),
+      endereco: document.getElementById('rec-endereco').value.trim(),
+      telefone: document.getElementById('rec-telefone').value.trim(),
+    };
+    atendimentos.unshift(editado);
+    salvarAtendimentos(atendimentos);
+    formRecepcao.reset();
+    formRecepcao.onsubmit = null;
+    renderRecepcao();
+    toast('Atendimento ' + editado.id + ' atualizado!');
+  };
+  toast('Editando atendimento ' + id + '. Ajuste os dados e clique em "Gerar Atendimento".');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+async function cancelarAtendimento(id){
+  const ok = await confirmarModal('Cancelar atendimento', `Deseja realmente cancelar o atendimento ${id}? Essa ação não poderá ser desfeita.`);
+  if(!ok) return;
+  const a = atendimentos.find(x=>x.id===id);
+  if(a){ a.status = 'cancelado'; salvarAtendimentos(atendimentos); renderRecepcao(); toast('Atendimento ' + id + ' cancelado.'); }
+}
+
+renderRecepcao();
+</script>
+</body>
+</html>
