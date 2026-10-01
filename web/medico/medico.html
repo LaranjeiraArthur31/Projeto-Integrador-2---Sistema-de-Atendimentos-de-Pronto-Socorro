@@ -15,10 +15,10 @@
     <h1>Pronto Socorro<br>Painel de Atendimentos</h1>
   </div>
   <nav>
-    <a href="recepcao.html"><span class="ic">📋</span>Recepção</a>
-    <a href="triagem.html"><span class="ic">🩺</span>Triagem</a>
-    <a href="painel.html"><span class="ic">📺</span>Painel de Atendimento</a>
-    <a href="medico.html" class="active"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
+    <a href="../recepcao/recepcao.html"><span class="ic">📋</span>Recepção</a>
+    <a href="../triagem/triagem.html"><span class="ic">🩺</span>Triagem</a>
+    <a href="../painel/painel.html"><span class="ic">📺</span>Painel de Atendimento</a>
+    <a href="./medico.html" class="active"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
   </nav>
   <div class="relogio" id="relogio"></div>
 </aside>
@@ -76,7 +76,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="comum.js"></script>
+<script src="../comum/comum.js"></script>
 <script>
 /* ============================================================
    ATENDIMENTO MÉDICO — lógica específica desta página
@@ -125,7 +125,7 @@ document.getElementById('medico-select-atendimento').addEventListener('change', 
   detalhe.dataset.id = id;
 });
 
-document.getElementById('form-medico').addEventListener('submit', e=>{
+document.getElementById('form-medico').addEventListener('submit', async e=>{
   e.preventDefault();
   const id = document.getElementById('medico-detalhe').dataset.id;
   const a = atendimentos.find(x=>x.id===id);
@@ -136,7 +136,7 @@ document.getElementById('form-medico').addEventListener('submit', e=>{
     observacoes: document.getElementById('md-observacoes').value.trim()
   };
   a.status = 'confirmado';
-  salvarAtendimentos(atendimentos);
+  await salvarAtendimentos(atendimentos);
 
   document.getElementById('medico-detalhe').style.display = 'none';
   toast('Atendimento ' + id + ' confirmado com sucesso!');
@@ -160,7 +160,10 @@ function renderConfirmados(){
   });
 }
 
-renderMedico();
+window.addEventListener('DOMContentLoaded', async () => {
+  await carregarAtendimentos();
+  renderMedico();
+});
 </script>
 </body>
 </html>

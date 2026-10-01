@@ -15,10 +15,10 @@
     <h1>Pronto Socorro<br>Painel de Atendimentos</h1>
   </div>
   <nav>
-    <a href="./../recepcao/recepcao.html"><span class="ic">📋</span>Recepção</a>
-    <a href="./../triagem//triagem.html" class="active"><span class="ic">🩺</span>Triagem</a>
-    <a href="./../painel//painel.html"><span class="ic">📺</span>Painel de Atendimento</a>
-    <a href="./../medico//medico.html"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
+    <a href="../recepcao/recepcao.html"><span class="ic">📋</span>Recepção</a>
+    <a href="./triagem.html" class="active"><span class="ic">🩺</span>Triagem</a>
+    <a href="../painel/painel.html"><span class="ic">📺</span>Painel de Atendimento</a>
+    <a href="../medico/medico.html"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
   </nav>
   <div class="relogio" id="relogio"></div>
 </aside>
@@ -104,7 +104,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="comum.js"></script>
+<script src="../comum/comum.js"></script>
 <script>
 /* ============================================================
    TRIAGEM — lógica específica desta página
@@ -156,7 +156,7 @@ document.getElementById('btn-cancelar-triagem').addEventListener('click', ()=>{
   document.getElementById('card-form-triagem').style.display = 'none';
 });
 
-document.getElementById('form-triagem').addEventListener('submit', e=>{
+document.getElementById('form-triagem').addEventListener('submit', async e=>{
   e.preventDefault();
   const id = document.getElementById('triagem-atendimento-id').value;
   const a = atendimentos.find(x=>x.id===id);
@@ -169,13 +169,16 @@ document.getElementById('form-triagem').addEventListener('submit', e=>{
     classificacao: document.getElementById('tri-classificacao').value
   };
   a.status = 'aguardando-medico';
-  salvarAtendimentos(atendimentos);
+  await salvarAtendimentos(atendimentos);
   document.getElementById('card-form-triagem').style.display = 'none';
   renderTriagem();
   toast('Triagem do atendimento ' + id + ' concluída!');
 });
 
-renderTriagem();
+window.addEventListener('DOMContentLoaded', async () => {
+  await carregarAtendimentos();
+  renderTriagem();
+});
 </script>
 </body>
 </html>

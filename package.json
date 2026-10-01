@@ -1,6 +1,16 @@
 {
+  "name": "projeto-integrador-2-sistema-de-atendimentos-pronto-socorro",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node services/server.js",
+    "dev": "node --watch services/server.js",
+    "test": "node --test"
+  },
   "dependencies": {
     "cors": "^2.8.6",
-    "express": "^5.2.1"
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "mysql2": "^3.12.0"
   }
 }
