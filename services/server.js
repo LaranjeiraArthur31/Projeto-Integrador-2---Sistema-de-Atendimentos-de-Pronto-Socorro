@@ -40,13 +40,13 @@ async function testarConexaoBanco() {
 
 if (isMainModule) {
   app.listen(PORT, async () => {
-    console.log('🚀 API iniciada com Express');
-    console.log('📦 Dependências: express, cors, dotenv, mysql2');
-    console.log(`🌐 http://localhost:${PORT}`);
+    console.log(' API iniciada com Express');
+    console.log(' Dependências: express, cors, dotenv, mysql2');
+    console.log(` http://localhost:${PORT}`);
 
     const conectado = await testarConexaoBanco();
     if (!conectado) {
-      console.log('⚠️ A API subiu, mas o banco não está conectado. Verifique .env, MySQL e credenciais.');
+      console.log(' A API subiu, mas o banco não está conectado. Verifique .env, MySQL e credenciais.');
     }
   });
 }
