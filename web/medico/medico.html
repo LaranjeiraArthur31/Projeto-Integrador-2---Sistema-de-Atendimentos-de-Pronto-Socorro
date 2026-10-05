@@ -47,6 +47,12 @@
 
       <form id="form-medico">
         <div class="field full">
+          <label>Médico responsável *</label>
+          <select id="md-profissional" required>
+            <option value="">Selecione um profissional...</option>
+          </select>
+        </div>
+        <div class="field full">
           <label>Medicações prescritas *</label>
           <textarea id="md-medicacoes" placeholder="Ex: Dipirona 1g EV, Soro fisiológico 500ml..." required></textarea>
         </div>
@@ -133,10 +139,15 @@ document.getElementById('form-medico').addEventListener('submit', async e=>{
 
   a.medico = {
     medicacoes: document.getElementById('md-medicacoes').value.trim(),
-    observacoes: document.getElementById('md-observacoes').value.trim()
+    observacoes: document.getElementById('md-observacoes').value.trim(),
+    id_profissional: Number(document.getElementById('md-profissional').value)
   };
   a.status = 'confirmado';
-  await salvarAtendimentos(atendimentos);
+  try {
+    await salvarAtendimentos(atendimentos);
+  } catch (_error) {
+    return;
+  }
 
   document.getElementById('medico-detalhe').style.display = 'none';
   toast('Atendimento ' + id + ' confirmado com sucesso!');
@@ -151,17 +162,24 @@ function renderConfirmados(){
   confirmados.forEach(a=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${a.id}</strong></td>
-      <td>${a.nome}</td>
+      <td><strong>${escapeHtml(a.id)}</strong></td>
+      <td>${escapeHtml(a.nome)}</td>
       <td><span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span></td>
-      <td>${a.medico.medicacoes}</td>
+      <td>${escapeHtml(a.medico.medicacoes)}</td>
     `;
     tbody.appendChild(tr);
   });
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  await carregarAtendimentos();
+  try {
+    await Promise.all([
+      carregarAtendimentos(),
+      carregarProfissionais('medico', 'md-profissional')
+    ]);
+  } catch (_error) {
+    return;
+  }
   renderMedico();
 });
 </script>

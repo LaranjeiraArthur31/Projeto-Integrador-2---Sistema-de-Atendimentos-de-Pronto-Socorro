@@ -60,6 +60,20 @@ INSERT INTO hospitacao_profissional (
     TRUE
 );
 
+INSERT INTO hospitacao_profissional (
+    nome_completo,
+    cpf,
+    cargo,
+    perfil_acesso,
+    email,
+    senha_hash,
+    ativo
+) VALUES
+    ('Recepcionista demonstração', 'DEMO-RECEPCAO', 'Recepção', 'recepcao',
+     'recepcao.demo@hospital.test', 'hash_demo', TRUE),
+    ('Enfermeiro demonstração', 'DEMO-ENFERMAGEM', 'Enfermagem', 'enfermeiro',
+     'enfermagem.demo@hospital.test', 'hash_demo', TRUE);
+
 INSERT INTO hospitacao_atendimento (
     cod_atendimento,
     id_paciente,
@@ -102,3 +116,11 @@ INSERT INTO hospitacao_triagem (
     'Paciente estável.'
 );
 
+SELECT setval(
+    'hospitacao_atendimento_codigo_seq',
+    GREATEST(COALESCE((
+        SELECT MAX(SUBSTRING(cod_atendimento FROM '^AT([0-9]+)$')::BIGINT)
+        FROM hospitacao_atendimento
+    ), 0) + 1, 1),
+    FALSE
+);

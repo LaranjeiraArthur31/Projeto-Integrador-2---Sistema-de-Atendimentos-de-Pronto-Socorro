@@ -1,86 +1,46 @@
-# Projeto-Integrador-2---Sistema-de-Atendimentos-de-Pronto-Socorro
+# Sistema de Atendimento de Pronto-Socorro
 
-## Integrantes
+Aplicação web para acompanhamento do atendimento desde a recepção até a alta médica. O backend Express persiste os dados em PostgreSQL e serve a própria aplicação web.
 
-* Arthur Lopes Laranjeira
-* Gabriel Henrique Rodrigues Rocha
-* Igor Mastrangelo Domingos
-* Jorge Rodrigues Dos Santos Neto
-* Maximus Daniel Nascimento
+## Requisitos
 
-# Sistema de Atendimento de Pronto Socorro
+- Node.js 20 ou superior
+- PostgreSQL
 
-## Descrição
+## Configuração
 
-Sistema web desenvolvido para gerenciamento e controle de atendimentos em unidades de Pronto Socorro, acompanhando o paciente desde a recepção até a alta médica.
+1. Crie o banco de dados que será usado pelo sistema.
+2. Copie `.env.example` para `.env` e informe as credenciais locais do PostgreSQL.
+3. Execute `database/schema.sql` para criar as tabelas em um banco vazio.
+4. Para um banco que já contém as tabelas `hospitacao_*`, execute `database/migrate.sql` para adicionar os campos, status e registros médicos usados pelo web.
+5. (Opcional) Execute `database/seeds.sql` para inserir um paciente e profissionais de demonstração.
+6. Instale dependências e inicie:
 
-O sistema permite:
+```sh
+npm install
+npm start
+```
 
-- Cadastro de pacientes e geração de número de atendimento (ex: AT0001)
-- Inclusão, alteração, consulta e cancelamento de atendimentos na recepção
-- Registro de sinais vitais (pressão, temperatura, batimentos) e queixas na triagem
-- Classificação automática de risco pelo Protocolo de Manchester
-- Painel médico com fila ordenada por prioridade de urgência
-- Registro de prescrição de medicamentos e alta médica
+Acesse `http://localhost:3000`. A API e as páginas web são servidas na mesma origem. `npm run dev` inicia o servidor com reinicialização automática e `npm test` executa os testes automatizados.
 
----
+## Configuração do banco
 
-# Tecnologias utilizadas
+O servidor lê `HOST`, `PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` e `DB_NAME`. Os valores padrão apontam apenas para a própria máquina (`127.0.0.1:3000`) e para PostgreSQL local (`localhost:5432`, banco `BD240226119`). O processo da API pode iniciar sem o banco disponível; `GET /health` indica se a conexão está funcionando.
 
-- HTML5
-- CSS3
-- JavaScript (ES6+)
-- MySQL Workbench 8.0 CE
-- Git e GitHub
+O projeto ainda não implementa autenticação/autorização. Mantenha-o no uso local de desenvolvimento e não altere `HOST` para expor a API em uma rede ou internet antes de adicionar controle de acesso adequado aos dados de saúde.
 
----
+## API
 
-# Estrutura do projeto
+Os recursos `pacientes`, `prontuarios`, `profissionais` e `triagens` oferecem operações REST de listagem, consulta por ID, criação, atualização e remoção. As respostas de sucesso usam a propriedade `dados`; erros retornam status HTTP apropriado e uma propriedade `erro`.
 
-Projeto-Integrador-2---Sistema-de-Atendimentos-de-Pronto-Socorro/
+O recurso `atendimentos` apresenta o formato consumido pelas páginas web. A criação gera o código sequencial no servidor, associa o paciente ao prontuário e ao profissional da recepção, e as atualizações persistem triagem/consulta usando transações. O cancelamento mantém o registro e grava o estado `cancelado`.
 
 ```text
-pronto-socorro/
-├── web/
-│   ├── style.css
-│   ├── pages.js
-│   ├── recepcao.html
-│   ├── triagem.html
-│   └── medico.html
-├── services/
-│   ├── controllers.js
-│   ├── routes.js
-│   └── server.js
-├── database/
-│   ├── schema.sql
-│   └── seeds.sql
-├── .gitignore
-└── README.md
+GET    /atendimentos
+POST   /atendimentos
+PUT    /atendimentos/:codigo
+DELETE /atendimentos/:codigo
+GET    /profissionais?perfil_acesso=recepcao|enfermeiro|medico
 ```
----
 
-# Como executar o projeto
-
-## 1. Clone o repositório
-
-git clone https://github.com/LaranjeiraArthur31/Projeto-Integrador-2---Sistema-de-Atendimentos-de-Pronto-Socorro.git
-
----
-
-## 2. Acesse a pasta do projeto
-
-cd Projeto-Integrador-2---Sistema-de-Atendimentos-de-Pronto-Socorro
-
-
-
-# Configuração do banco
-
-## 1. Abra o MySQL Workbench
-
-Execute o arquivo:
-
-database/schema.sql
-
-Isso criará:
-- banco de dados (`projetoIntegrador`)
-- tabelas (`pacientes`, `atendimentos`, `triagem`, `consulta_medica`)
+O perfil de profissional é informado pelas telas e validado contra profissionais ativos no banco. As tabelas e chaves estrangeiras continuam usando os nomes `hospitacao_*` definidos pelo esquema do projeto.

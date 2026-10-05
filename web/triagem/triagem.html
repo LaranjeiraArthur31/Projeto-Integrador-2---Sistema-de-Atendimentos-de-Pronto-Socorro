@@ -58,6 +58,12 @@
             <label>Batimentos cardíacos (bpm) *</label>
             <input type="text" id="tri-bpm" required>
           </div>
+          <div class="field">
+            <label>Enfermeiro responsável *</label>
+            <select id="tri-profissional" required>
+              <option value="">Selecione um profissional...</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -117,10 +123,10 @@ function renderTriagem(){
   fila.forEach(a=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${a.id}</strong></td>
-      <td>${a.nome}</td>
+      <td><strong>${escapeHtml(a.id)}</strong></td>
+      <td>${escapeHtml(a.nome)}</td>
       <td>${new Date(a.criadoEm).toLocaleString('pt-BR')}</td>
-      <td><button class="btn btn-primary" style="padding:6px 12px;font-size:12px;" onclick="abrirTriagem('${a.id}')">Iniciar Triagem</button></td>
+      <td><button class="btn btn-primary" style="padding:6px 12px;font-size:12px;" onclick="abrirTriagem('${escapeHtml(a.id)}')">Iniciar Triagem</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -132,10 +138,10 @@ function renderTriagem(){
   feitas.forEach(a=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${a.id}</strong></td>
-      <td>${a.nome}</td>
+      <td><strong>${escapeHtml(a.id)}</strong></td>
+      <td>${escapeHtml(a.nome)}</td>
       <td><span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span></td>
-      <td>${a.triagem.queixas}</td>
+      <td>${escapeHtml(a.triagem.queixas)}</td>
     `;
     tbody2.appendChild(tr);
   });
@@ -166,17 +172,29 @@ document.getElementById('form-triagem').addEventListener('submit', async e=>{
     temp: document.getElementById('tri-temp').value.trim(),
     bpm: document.getElementById('tri-bpm').value.trim(),
     queixas: document.getElementById('tri-queixas').value.trim(),
-    classificacao: document.getElementById('tri-classificacao').value
+    classificacao: document.getElementById('tri-classificacao').value,
+    id_profissional: Number(document.getElementById('tri-profissional').value)
   };
   a.status = 'aguardando-medico';
-  await salvarAtendimentos(atendimentos);
+  try {
+    await salvarAtendimentos(atendimentos);
+  } catch (_error) {
+    return;
+  }
   document.getElementById('card-form-triagem').style.display = 'none';
   renderTriagem();
   toast('Triagem do atendimento ' + id + ' concluída!');
 });
 
 window.addEventListener('DOMContentLoaded', async () => {
-  await carregarAtendimentos();
+  try {
+    await Promise.all([
+      carregarAtendimentos(),
+      carregarProfissionais('enfermeiro', 'tri-profissional')
+    ]);
+  } catch (_error) {
+    return;
+  }
   renderTriagem();
 });
 </script>

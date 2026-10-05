@@ -43,6 +43,15 @@
             <input type="date" id="rec-nascimento" required>
           </div>
           <div class="field">
+            <label>Sexo *</label>
+            <select id="rec-sexo" required>
+              <option value="">Selecione...</option>
+              <option value="F">Feminino</option>
+              <option value="M">Masculino</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+          <div class="field">
             <label>CPF *</label>
             <input type="text" id="rec-cpf" placeholder="000.000.000-00" required>
           </div>
@@ -77,6 +86,12 @@
           <div class="field">
             <label>Telefone</label>
             <input type="text" id="rec-telefone" placeholder="(00) 00000-0000">
+          </div>
+          <div class="field">
+            <label>Atendente responsável *</label>
+            <select id="rec-profissional" required>
+              <option value="">Selecione um profissional...</option>
+            </select>
           </div>
         </div>
       </div>
@@ -128,16 +143,19 @@
 const formRecepcao = document.getElementById('form-recepcao');
 formRecepcao.addEventListener('submit', async e=>{
   e.preventDefault();
+  if (formRecepcao.dataset.editId) return;
   const novo = {
     id: proximoNumero(),
     nome: document.getElementById('rec-nome').value.trim(),
     nascimento: document.getElementById('rec-nascimento').value,
+    sexo: document.getElementById('rec-sexo').value,
     rg: document.getElementById('rec-rg').value.trim(),
     cpf: document.getElementById('rec-cpf').value.trim(),
     pai: document.getElementById('rec-pai').value.trim(),
     mae: document.getElementById('rec-mae').value.trim(),
     endereco: document.getElementById('rec-endereco').value.trim(),
     telefone: document.getElementById('rec-telefone').value.trim(),
+    id_profissional: Number(document.getElementById('rec-profissional').value),
     status: 'aguardando-triagem',
     criadoEm: new Date().toISOString(),
     triagem: null,
@@ -145,7 +163,12 @@ formRecepcao.addEventListener('submit', async e=>{
   };
 
   atendimentos.unshift(novo);
-  await salvarAtendimentos(atendimentos);
+  try {
+    await salvarAtendimentos(atendimentos);
+  } catch (_error) {
+    atendimentos = atendimentos.filter((item) => item !== novo);
+    return;
+  }
   formRecepcao.reset();
   renderRecepcao();
   toast('Atendimento ' + novo.id + ' gerado com sucesso!');
@@ -167,15 +190,15 @@ function renderRecepcao(){
     const tr = document.createElement('tr');
     const podeEditar = (a.status === 'aguardando-triagem');
     tr.innerHTML = `
-      <td><strong>${a.id}</strong></td>
-      <td>${a.nome}</td>
-      <td>${a.nascimento ? formatarData(a.nascimento) : '-'}</td>
-      <td>${a.cpf || '-'}</td>
+      <td><strong>${escapeHtml(a.id)}</strong></td>
+      <td>${escapeHtml(a.nome)}</td>
+      <td>${a.nascimento ? escapeHtml(formatarData(a.nascimento)) : '-'}</td>
+      <td>${escapeHtml(a.cpf || '-')}</td>
       <td><span class="badge ${a.status}">${STATUS_LABEL[a.status]}</span></td>
       <td>
-        <button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="verAtendimento('${a.id}')">Ver</button>
-        ${podeEditar ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="editarAtendimento('${a.id}')">Editar</button>
-        <button class="btn btn-danger" style="padding:6px 10px;font-size:12px;" onclick="cancelarAtendimento('${a.id}')">Cancelar</button>` : ''}
+        <button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="verAtendimento('${escapeHtml(a.id)}')">Ver</button>
+        ${podeEditar ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="editarAtendimento('${escapeHtml(a.id)}')">Editar</button>
+        <button class="btn btn-danger" style="padding:6px 10px;font-size:12px;" onclick="cancelarAtendimento('${escapeHtml(a.id)}')">Cancelar</button>` : ''}
       </td>
     `;
     tbody.appendChild(tr);
@@ -200,12 +223,15 @@ function editarAtendimento(id){
   if(!a) return;
   document.getElementById('rec-nome').value = a.nome;
   document.getElementById('rec-nascimento').value = a.nascimento;
+  document.getElementById('rec-sexo').value = a.sexo || '';
   document.getElementById('rec-rg').value = a.rg;
   document.getElementById('rec-cpf').value = a.cpf;
   document.getElementById('rec-pai').value = a.pai;
   document.getElementById('rec-mae').value = a.mae;
   document.getElementById('rec-endereco').value = a.endereco;
   document.getElementById('rec-telefone').value = a.telefone;
+  document.getElementById('rec-profissional').value = '';
+  formRecepcao.dataset.editId = id;
 
   atendimentos = atendimentos.filter(x=>x.id!==id);
   formRecepcao.onsubmit = (e)=>{
@@ -214,6 +240,7 @@ function editarAtendimento(id){
       ...a,
       nome: document.getElementById('rec-nome').value.trim(),
       nascimento: document.getElementById('rec-nascimento').value,
+      sexo: document.getElementById('rec-sexo').value,
       rg: document.getElementById('rec-rg').value.trim(),
       cpf: document.getElementById('rec-cpf').value.trim(),
       pai: document.getElementById('rec-pai').value.trim(),
@@ -222,11 +249,13 @@ function editarAtendimento(id){
       telefone: document.getElementById('rec-telefone').value.trim(),
     };
     atendimentos.unshift(editado);
-    salvarAtendimentos(atendimentos);
-    formRecepcao.reset();
-    formRecepcao.onsubmit = null;
-    renderRecepcao();
-    toast('Atendimento ' + editado.id + ' atualizado!');
+    salvarAtendimentos(atendimentos).then(() => {
+      formRecepcao.reset();
+      formRecepcao.dataset.editId = '';
+      formRecepcao.onsubmit = null;
+      renderRecepcao();
+      toast('Atendimento ' + editado.id + ' atualizado!');
+    }).catch(() => {});
   };
   toast('Editando atendimento ' + id + '. Ajuste os dados e clique em "Gerar Atendimento".');
   window.scrollTo({top:0, behavior:'smooth'});
@@ -236,11 +265,28 @@ async function cancelarAtendimento(id){
   const ok = await confirmarModal('Cancelar atendimento', `Deseja realmente cancelar o atendimento ${id}? Essa ação não poderá ser desfeita.`);
   if(!ok) return;
   const a = atendimentos.find(x=>x.id===id);
-  if(a){ a.status = 'cancelado'; salvarAtendimentos(atendimentos); renderRecepcao(); toast('Atendimento ' + id + ' cancelado.'); }
+  if(a){
+    const statusAnterior = a.status;
+    a.status = 'cancelado';
+    try {
+      await salvarAtendimentos(atendimentos);
+      renderRecepcao();
+      toast('Atendimento ' + id + ' cancelado.');
+    } catch (_error) {
+      a.status = statusAnterior;
+    }
+  }
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  await carregarAtendimentos();
+  try {
+    await Promise.all([
+      carregarAtendimentos(),
+      carregarProfissionais('recepcao', 'rec-profissional')
+    ]);
+  } catch (_error) {
+    return;
+  }
   renderRecepcao();
 });
 </script>

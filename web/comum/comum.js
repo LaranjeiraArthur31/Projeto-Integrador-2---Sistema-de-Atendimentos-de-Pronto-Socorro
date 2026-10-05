@@ -1,55 +1,107 @@
 /* ============================================================
-   COMUM.JS — estado, persistência e utilitários compartilhados
+   COMUM.JS — estado, API e utilitários compartilhados
    ============================================================ */
-const STORAGE_KEY = 'ps_atendimentos_v1';
-const STORAGE_SEQ = 'ps_sequencia_v1';
-const API_BASE_URL = 'http://localhost:3000';
-
-async function carregarAtendimentos(){
-  try {
-    const resposta = await fetch(`${API_BASE_URL}/atendimentos`);
-    if (!resposta.ok) throw new Error('API indisponível');
-
-    const payload = await resposta.json();
-    const lista = payload.dados || payload.atendimentos || [];
-    atendimentos = Array.isArray(lista) ? lista : [];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(atendimentos));
-    return atendimentos;
-  } catch (erro) {
-    console.warn('Falha ao carregar atendimentos da API. Usando dados locais.', erro);
-    try {
-      const local = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      atendimentos = Array.isArray(local) ? local : [];
-    } catch (_erro) {
-      atendimentos = [];
-    }
-    return atendimentos;
-  }
-}
-
-async function salvarAtendimentos(lista){
-  atendimentos = Array.isArray(lista) ? lista : [];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(atendimentos));
-
-  try {
-    await fetch(`${API_BASE_URL}/atendimentos`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ atendimentos: atendimentos })
-    });
-  } catch (erro) {
-    console.warn('Não foi possível sincronizar com a API.', erro);
-  }
-}
-
-function proximoNumero(){
-  let seq = parseInt(localStorage.getItem(STORAGE_SEQ) || '0', 10);
-  seq += 1;
-  localStorage.setItem(STORAGE_SEQ, String(seq));
-  return 'AT' + String(seq).padStart(4, '0');
-}
+const API_BASE_URL = window.location.origin;
 
 let atendimentos = [];
+let persistedAtendimentos = new Map();
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...options.headers
+    }
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.erro || `Falha na API (${response.status})`);
+  }
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+async function carregarAtendimentos() {
+  try {
+    const payload = await apiRequest('/atendimentos');
+    atendimentos = Array.isArray(payload.dados) ? payload.dados : [];
+    persistedAtendimentos = new Map(
+      atendimentos.map((item) => [item.id, JSON.stringify(item)])
+    );
+    return atendimentos;
+  } catch (error) {
+    toast(`Não foi possível carregar os atendimentos: ${error.message}`, true);
+    console.error('Falha ao carregar atendimentos da API.', error);
+    throw error;
+  }
+}
+
+async function carregarProfissionais(perfil, selectId) {
+  const select = document.getElementById(selectId);
+  let payload;
+  try {
+    payload = await apiRequest(`/profissionais?perfil_acesso=${encodeURIComponent(perfil)}`);
+  } catch (error) {
+    toast(`Não foi possível carregar os profissionais: ${error.message}`, true);
+    throw error;
+  }
+  const profissionais = Array.isArray(payload.dados) ? payload.dados : [];
+  profissionais.forEach((profissional) => {
+    const option = document.createElement('option');
+    option.value = profissional.id_profissional;
+    option.textContent = `${profissional.nome_completo} — ${profissional.cargo}`;
+    select.appendChild(option);
+  });
+  if (profissionais.length === 0) {
+    select.disabled = true;
+    toast(`Cadastre um profissional ativo com perfil "${perfil}" para continuar.`, true);
+  }
+  return profissionais;
+}
+
+async function salvarAtendimentos(lista) {
+  if (!Array.isArray(lista)) throw new Error('Lista de atendimentos inválida');
+  const atual = new Set(lista.map((item) => item.id).filter(Boolean));
+
+  try {
+    for (const item of lista) {
+      const previous = item.id ? persistedAtendimentos.get(item.id) : null;
+      const serialized = JSON.stringify(item);
+      if (!previous) {
+        const payload = await apiRequest('/atendimentos', {
+          method: 'POST',
+          body: JSON.stringify(item)
+        });
+        Object.assign(item, payload.dados);
+      } else if (previous !== serialized) {
+        const payload = await apiRequest(`/atendimentos/${encodeURIComponent(item.id)}`, {
+          method: 'PUT',
+          body: JSON.stringify(item)
+        });
+        Object.assign(item, payload.dados);
+      }
+      atual.add(item.id);
+      persistedAtendimentos.set(item.id, JSON.stringify(item));
+    }
+
+    for (const [id] of persistedAtendimentos) {
+      if (atual.has(id)) continue;
+      await apiRequest(`/atendimentos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      persistedAtendimentos.delete(id);
+    }
+    atendimentos = lista;
+    return atendimentos;
+  } catch (error) {
+    toast(`Não foi possível salvar: ${error.message}`, true);
+    console.error('Falha ao salvar atendimentos na API.', error);
+    throw error;
+  }
+}
+
+function proximoNumero() {
+  return null;
+}
 
 const MANCHESTER_ORDEM = { vermelho:1, laranja:2, amarelo:3, verde:4, azul:5 };
 const MANCHESTER_LABEL = {
@@ -60,17 +112,17 @@ const STATUS_LABEL = {
   'aguardando-triagem':'Aguardando Triagem',
   'aguardando-medico':'Aguardando Médico',
   'em-atendimento':'Em Atendimento',
-  'confirmado':'Confirmado',
+  'em-observacao':'Em Observação',
+  'confirmado':'Alta médica',
   'cancelado':'Cancelado'
 };
 
-/* ---------- TOAST + MODAL ---------- */
 function toast(msg, isErr=false){
   const t = document.getElementById('toast');
   if(!t) return;
   t.textContent = msg;
   t.className = 'toast show' + (isErr ? ' err' : '');
-  setTimeout(()=> t.className = 'toast', 2200);
+  setTimeout(()=> t.className = 'toast', 3500);
 }
 
 function confirmarModal(titulo, texto){
@@ -91,7 +143,6 @@ function confirmarModal(titulo, texto){
   });
 }
 
-/* ---------- FORMATAÇÃO ---------- */
 function calcularIdade(dataNasc){
   if(!dataNasc) return '';
   const nasc = new Date(dataNasc + 'T00:00:00');
@@ -102,11 +153,21 @@ function calcularIdade(dataNasc){
   return idade + ' anos';
 }
 function formatarData(iso){
-  const [y,m,d] = iso.split('-');
+  if (!iso) return '-';
+  const [y,m,d] = iso.slice(0, 10).split('-');
   return `${d}/${m}/${y}`;
 }
 
-/* ---------- RELÓGIO ---------- */
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
 function atualizarRelogio(){
   const el = document.getElementById('relogio');
   if(el) el.textContent = new Date().toLocaleString('pt-BR');
@@ -115,4 +176,5 @@ setInterval(atualizarRelogio, 1000);
 atualizarRelogio();
 
 window.carregarAtendimentos = carregarAtendimentos;
+window.carregarProfissionais = carregarProfissionais;
 window.salvarAtendimentos = salvarAtendimentos;

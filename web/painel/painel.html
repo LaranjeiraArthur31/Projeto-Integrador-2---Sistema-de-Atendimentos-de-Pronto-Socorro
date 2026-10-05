@@ -62,8 +62,8 @@ function renderPainel(){
     div.innerHTML = `
       <div class="pi-pos">${idx+1}º</div>
       <div class="pi-info">
-        <div class="pi-nome">${a.nome} <span>— ${a.id}</span></div>
-        <div class="pi-sub">Nascimento: ${formatarData(a.nascimento)} (${calcularIdade(a.nascimento)}) · Queixa: ${a.triagem.queixas}</div>
+        <div class="pi-nome">${escapeHtml(a.nome)} <span>— ${escapeHtml(a.id)}</span></div>
+        <div class="pi-sub">Nascimento: ${escapeHtml(formatarData(a.nascimento))} (${escapeHtml(calcularIdade(a.nascimento))}) · Queixa: ${escapeHtml(a.triagem.queixas)}</div>
       </div>
       <span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span>
     `;
