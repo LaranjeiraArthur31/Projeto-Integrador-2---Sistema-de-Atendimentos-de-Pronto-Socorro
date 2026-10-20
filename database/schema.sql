@@ -1,134 +1,71 @@
-CREATE TABLE IF NOT EXISTS hospitacao_paciente (
-    id_paciente INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+-- 1. Tabela de Pacientes
+CREATE TABLE paciente (
+    id_paciente INT AUTO_INCREMENT PRIMARY KEY,
     nome_completo VARCHAR(100) NOT NULL,
     cpf VARCHAR(14) NOT NULL UNIQUE,
-    cartao_sus VARCHAR(20) UNIQUE,
+    rg VARCHAR(20) NOT NULL,
+    nome_mae VARCHAR(100) NOT NULL,
+    nome_pai VARCHAR(100),
     data_nascimento DATE NOT NULL,
-    sexo VARCHAR(10) NOT NULL CHECK (sexo IN ('M', 'F', 'outro')),
+    sexo ENUM('M','F') NOT NULL,
     telefone VARCHAR(20),
     endereco VARCHAR(150),
-    email VARCHAR(150) UNIQUE,
-    senha_hash VARCHAR(255),
-    rg VARCHAR(20),
-    nome_pai VARCHAR(100),
-    nome_mae VARCHAR(100)
+    email VARCHAR(100)
 );
 
-CREATE TABLE IF NOT EXISTS hospitacao_prontuario (
-    id_prontuario INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    id_paciente INT NOT NULL UNIQUE,
-    data_abertura DATE NOT NULL,
-    tipo_sanguineo VARCHAR(12) NOT NULL DEFAULT 'desconhecido'
-        CHECK (tipo_sanguineo IN (
-            'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'desconhecido'
-        )),
-    alergias TEXT,
-    doencas_cronicas TEXT,
-    medicamentos_em_uso TEXT,
-    CONSTRAINT fk_prontuario_paciente
-        FOREIGN KEY (id_paciente)
-        REFERENCES hospitacao_paciente(id_paciente)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS hospitacao_profissional (
-    id_profissional INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+-- 2. Tabela de Profissionais (Recepção, Enfermagem e Médicos)
+CREATE TABLE profissional (
+    id_profissional INT AUTO_INCREMENT PRIMARY KEY,
     nome_completo VARCHAR(100) NOT NULL,
     cpf VARCHAR(14) NOT NULL UNIQUE,
-    cargo VARCHAR(50) NOT NULL,
-    registro_conselho VARCHAR(20) UNIQUE,
+    cargo ENUM('Medico', 'Enfermeiro', 'Recepcionista') NOT NULL,
+    registro_conselho VARCHAR(20), -- CRM para médicos, COREN para enfermeiros
     especialidade VARCHAR(50),
-    perfil_acesso VARCHAR(20) NOT NULL
-        CHECK (perfil_acesso IN ('recepcao', 'enfermeiro', 'medico', 'admin')),
     email VARCHAR(150) NOT NULL UNIQUE,
-    senha_hash VARCHAR(255) NOT NULL,
+    senha VARCHAR(255) NOT NULL,
     ativo BOOLEAN NOT NULL DEFAULT TRUE
 );
 
-CREATE TABLE IF NOT EXISTS hospitacao_atendimento (
-    id_atendimento INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    cod_atendimento VARCHAR(20) NOT NULL UNIQUE,
+-- 3. Tabela de Atendimentos
+CREATE TABLE atendimento (
+    id_atendimento INT AUTO_INCREMENT PRIMARY KEY,
+    numero_atendimento VARCHAR(20) NOT NULL UNIQUE, -- Ex: AT0001
     id_paciente INT NOT NULL,
-    id_prontuario INT NOT NULL,
-    id_profissional INT NOT NULL,
-    data_hora_chegada TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    canal_entrada VARCHAR(20) NOT NULL
-        CHECK (canal_entrada IN ('presencial', 'digital')),
-    queixa_principal TEXT,
-    status VARCHAR(30) NOT NULL
-        CHECK (status IN (
-            'aguardando_triagem', 'aguardando_atendimento', 'em_atendimento',
-            'em_observacao', 'alta', 'internado', 'transferido', 'obito', 'cancelado'
-        )),
-    CONSTRAINT fk_atendimento_paciente
-        FOREIGN KEY (id_paciente)
-        REFERENCES hospitacao_paciente(id_paciente)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE,
-    CONSTRAINT fk_atendimento_prontuario
-        FOREIGN KEY (id_prontuario)
-        REFERENCES hospitacao_prontuario(id_prontuario)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE,
-    CONSTRAINT fk_atendimento_profissional
-        FOREIGN KEY (id_profissional)
-        REFERENCES hospitacao_profissional(id_profissional)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE
+    id_recepcionista INT NOT NULL,
+    data_hora_chegada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('AGUARDANDO_TRIAGEM', 'AGUARDANDO_MEDICO', 'EM_ATENDIMENTO', 'FINALIZADO', 'CANCELADO') NOT NULL DEFAULT 'AGUARDANDO_TRIAGEM',
+    
+    CONSTRAINT fk_atendimento_paciente FOREIGN KEY (id_paciente) REFERENCES paciente(id_paciente) ON DELETE RESTRICT,
+    CONSTRAINT fk_atendimento_recepcionista FOREIGN KEY (id_recepcionista) REFERENCES profissional(id_profissional) ON DELETE RESTRICT
 );
 
-CREATE TABLE IF NOT EXISTS hospitacao_triagem (
-    id_triagem INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+-- 4. Tabela de Triagem (Protocolo de Manchester)
+CREATE TABLE triagem (
+    id_triagem INT AUTO_INCREMENT PRIMARY KEY,
     id_atendimento INT NOT NULL UNIQUE,
-    id_profissional INT NOT NULL,
-    data_hora_triagem TIMESTAMP NOT NULL,
-    pressao_arterial VARCHAR(20),
+    id_enfermeiro INT NOT NULL,
+    data_hora_triagem TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    pressao_arterial VARCHAR(10),
     temperatura DECIMAL(4,2),
     frequencia_cardiaca INT,
-    saturacao_o2 INT,
-    peso DECIMAL(5,2),
-    classificacao_risco VARCHAR(10) NOT NULL
-        CHECK (classificacao_risco IN ('vermelho', 'laranja', 'amarelo', 'verde', 'azul')),
-    observacoes TEXT,
-    CONSTRAINT fk_triagem_atendimento
-        FOREIGN KEY (id_atendimento)
-        REFERENCES hospitacao_atendimento(id_atendimento)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE,
-    CONSTRAINT fk_triagem_profissional
-        FOREIGN KEY (id_profissional)
-        REFERENCES hospitacao_profissional(id_profissional)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE
+    queixa_principal TEXT NOT NULL,
+    classificacao_manchester ENUM('VERMELHO', 'LARANJA', 'AMARELO', 'VERDE', 'AZUL') NOT NULL,
+
+    CONSTRAINT fk_triagem_atendimento FOREIGN KEY (id_atendimento) REFERENCES atendimento(id_atendimento) ON DELETE RESTRICT,
+    CONSTRAINT fk_triagem_enfermeiro FOREIGN KEY (id_enfermeiro) REFERENCES profissional(id_profissional) ON DELETE RESTRICT
 );
 
-CREATE TABLE IF NOT EXISTS hospitacao_consulta_medica (
-    id_consulta INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+-- 5. Tabela de Atendimento Médico (Consulta Final)
+CREATE TABLE atendimento_medico (
+    id_atendimento_medico INT AUTO_INCREMENT PRIMARY KEY,
     id_atendimento INT NOT NULL UNIQUE,
-    id_profissional INT NOT NULL,
-    data_hora_consulta TIMESTAMP NOT NULL,
-    prescricao TEXT NOT NULL,
+    id_medico INT NOT NULL,
+    data_hora_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_hora_fim TIMESTAMP NULL,
     diagnostico TEXT,
+    medicacoes_prescritas TEXT, -- Atende ao requisito de registrar medicações
     observacoes TEXT,
-    CONSTRAINT fk_consulta_atendimento
-        FOREIGN KEY (id_atendimento)
-        REFERENCES hospitacao_atendimento(id_atendimento)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE,
-    CONSTRAINT fk_consulta_profissional
-        FOREIGN KEY (id_profissional)
-        REFERENCES hospitacao_profissional(id_profissional)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE
-);
 
-CREATE SEQUENCE IF NOT EXISTS hospitacao_atendimento_codigo_seq;
-SELECT setval(
-    'hospitacao_atendimento_codigo_seq',
-    GREATEST(COALESCE((
-        SELECT MAX(SUBSTRING(cod_atendimento FROM '^AT([0-9]+)$')::BIGINT)
-        FROM hospitacao_atendimento
-    ), 0) + 1, 1),
-    FALSE
+    CONSTRAINT fk_consulta_atendimento FOREIGN KEY (id_atendimento) REFERENCES atendimento(id_atendimento) ON DELETE RESTRICT,
+    CONSTRAINT fk_consulta_medico FOREIGN KEY (id_medico) REFERENCES profissional(id_profissional) ON DELETE RESTRICT
 );
