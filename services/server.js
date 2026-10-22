@@ -5,11 +5,11 @@ import pg from 'pg';
 import { createApp } from './routes.js';
 import { PostgresRepository } from './repository.js';
 
-const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+pg.types.setTypeParser(1082, (value) => value);
 
-export const db = new Pool({
+export const db = new pg.Pool({
   host: process.env.DB_HOST || 'localhost',
   port: Number(process.env.DB_PORT || 5432),
   user: process.env.DB_USER || 'postgres',

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro profissional | Pronto Socorro</title>
+  <link rel="stylesheet" href="/auth/auth.css">
+  <script src="/auth/auth.js" defer></script>
+</head>
+
+<body>
+  <main class="auth-layout">
+    <section class="card auth-card">
+      <p class="eyebrow">NOVO PROFISSIONAL</p>
+      <h2>Crie sua conta</h2>
+      <p class="auth-warning">Cadastro livre para demonstração: o cargo informado não passa por verificação de
+        habilitação profissional.</p>
+      <form id="cadastro-form">
+        <div class="field"><label for="nome_completo">Nome completo</label><input id="nome_completo"
+            name="nome_completo" autocomplete="name" maxlength="100" required></div>
+        <div class="field"><label for="cpf">CPF</label><input id="cpf" name="cpf" maxlength="14"
+            placeholder="000.000.000-00" required></div>
+        <div class="field"><label for="cargo">Cargo</label><select id="cargo" name="cargo" required>
+            <option value="">Selecione seu cargo</option>
+            <option value="Recepcionista">Recepcionista</option>
+            <option value="Enfermeiro">Enfermeiro</option>
+            <option value="Medico">Médico</option>
+          </select></div>
+        <div class="field"><label for="registro_conselho">Registro no conselho (CRM / COREN, se aplicável)</label><input
+            id="registro_conselho" name="registro_conselho" maxlength="20"></div>
+        <div class="field"><label for="especialidade">Especialidade (opcional)</label><input id="especialidade"
+            name="especialidade" maxlength="50"></div>
+        <div class="field"><label for="email">Email</label><input id="email" name="email" type="email"
+            autocomplete="username" maxlength="150" required></div>
+        <div class="field"><label for="senha">Senha (8 a 128 caracteres)</label><input id="senha" name="senha"
+            type="password" autocomplete="new-password" minlength="8" maxlength="128" required></div>
+        <div class="field"><label for="confirmacao">Confirme a senha</label><input id="confirmacao" name="confirmacao"
+            type="password" autocomplete="new-password" minlength="8" maxlength="128" required></div>
+        <p id="mensagem" class="auth-message" role="status" aria-live="polite"></p>
+        <button type="submit" class="btn btn-primary">Criar conta</button>
+      </form>
+      <p class="auth-footer">Já tem uma conta? <a href="/auth/login.html">Entrar</a></p>
+    </section>
+  </main>
+</body>
+
+</html>

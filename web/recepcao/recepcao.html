@@ -48,7 +48,6 @@
               <option value="">Selecione...</option>
               <option value="F">Feminino</option>
               <option value="M">Masculino</option>
-              <option value="outro">Outro</option>
             </select>
           </div>
           <div class="field">
@@ -56,8 +55,8 @@
             <input type="text" id="rec-cpf" placeholder="000.000.000-00" required>
           </div>
           <div class="field">
-            <label>RG</label>
-            <input type="text" id="rec-rg" placeholder="00.000.000-0">
+            <label>RG *</label>
+            <input type="text" id="rec-rg" placeholder="00.000.000-0" required>
           </div>
         </div>
       </div>
@@ -70,8 +69,8 @@
             <input type="text" id="rec-pai">
           </div>
           <div class="field">
-            <label>Nome da mãe</label>
-            <input type="text" id="rec-mae">
+            <label>Nome da mãe *</label>
+            <input type="text" id="rec-mae" required>
           </div>
         </div>
       </div>
@@ -230,7 +229,6 @@ function editarAtendimento(id){
   document.getElementById('rec-mae').value = a.mae;
   document.getElementById('rec-endereco').value = a.endereco;
   document.getElementById('rec-telefone').value = a.telefone;
-  document.getElementById('rec-profissional').value = '';
   formRecepcao.dataset.editId = id;
 
   atendimentos = atendimentos.filter(x=>x.id!==id);
@@ -266,14 +264,13 @@ async function cancelarAtendimento(id){
   if(!ok) return;
   const a = atendimentos.find(x=>x.id===id);
   if(a){
-    const statusAnterior = a.status;
-    a.status = 'cancelado';
     try {
-      await salvarAtendimentos(atendimentos);
+      await apiRequest(`/atendimentos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      await carregarAtendimentos();
       renderRecepcao();
       toast('Atendimento ' + id + ' cancelado.');
-    } catch (_error) {
-      a.status = statusAnterior;
+    } catch (error) {
+      toast(`Não foi possível cancelar: ${error.message}`, true);
     }
   }
 }

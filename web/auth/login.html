@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrar | Pronto Socorro</title>
+  <link rel="stylesheet" href="/auth/auth.css">
+  <script src="/auth/auth.js" defer></script>
+</head>
+
+<body>
+  <main class="auth-layout">
+    <section class="card auth-card">
+      <p class="eyebrow">ACESSO PROFISSIONAL</p>
+      <h2>Bem-vindo de volta</h2>
+      <p class="lead">Entre com seu email e senha. Seu cargo define as áreas disponíveis.</p>
+      <form id="login-form">
+        <div class="field"><label for="email">Email</label><input id="email" name="email" type="email"
+            autocomplete="username" maxlength="150" required></div>
+        <div class="field"><label for="senha">Senha</label><input id="senha" name="senha" type="password"
+            autocomplete="current-password" maxlength="128" required></div>
+        <p id="mensagem" class="auth-message" role="status" aria-live="polite"></p>
+        <button type="submit" class="btn btn-primary">Entrar</button>
+      </form>
+      <p class="auth-footer">Ainda não tem uma conta? <a href="/auth/cadastro.html">Cadastre-se</a></p>
+    </section>
+  </main>
+</body>
+
+</html>

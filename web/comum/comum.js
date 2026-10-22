@@ -5,6 +5,44 @@ const API_BASE_URL = window.location.origin;
 
 let atendimentos = [];
 let persistedAtendimentos = new Map();
+const sessao = carregarSessao();
+
+async function carregarSessao() {
+  const payload = await apiRequest('/auth/me');
+  const user = payload.dados;
+  const home = {
+    Recepcionista: '/recepcao/recepcao.html',
+    Enfermeiro: '/triagem/triagem.html',
+    Medico: '/medico/medico.html'
+  }[user.cargo];
+  document.querySelectorAll('.sidebar nav a').forEach((link) => {
+    const path = new URL(link.href).pathname;
+    if (path !== home && path !== '/painel/painel.html') link.remove();
+  });
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) {
+    const account = document.createElement('div');
+    account.className = 'conta';
+    const name = document.createElement('strong');
+    name.textContent = user.nome_completo;
+    const role = document.createElement('span');
+    role.textContent = user.cargo;
+    const logout = document.createElement('button');
+    logout.type = 'button';
+    logout.className = 'btn btn-secondary';
+    logout.textContent = 'Sair';
+    logout.addEventListener('click', async () => {
+      try {
+        await apiRequest('/auth/logout', { method: 'POST' });
+        window.location.replace('/auth/login.html');
+      } catch (error) { toast(error.message, true); }
+    });
+    account.append(name, role, logout);
+    sidebar.appendChild(account);
+  }
+  document.body.classList.add('autenticado');
+  return user;
+}
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -15,6 +53,7 @@ async function apiRequest(path, options = {}) {
     }
   });
   if (!response.ok) {
+    if (response.status === 401) window.location.replace('/auth/login.html');
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.erro || `Falha na API (${response.status})`);
   }
@@ -24,6 +63,7 @@ async function apiRequest(path, options = {}) {
 
 async function carregarAtendimentos() {
   try {
+    await sessao;
     const payload = await apiRequest('/atendimentos');
     atendimentos = Array.isArray(payload.dados) ? payload.dados : [];
     persistedAtendimentos = new Map(
@@ -39,20 +79,17 @@ async function carregarAtendimentos() {
 
 async function carregarProfissionais(perfil, selectId) {
   const select = document.getElementById(selectId);
-  let payload;
-  try {
-    payload = await apiRequest(`/profissionais?perfil_acesso=${encodeURIComponent(perfil)}`);
-  } catch (error) {
-    toast(`Não foi possível carregar os profissionais: ${error.message}`, true);
-    throw error;
-  }
-  const profissionais = Array.isArray(payload.dados) ? payload.dados : [];
+  const user = await sessao;
+  const profissionais = [user];
+  select.replaceChildren();
   profissionais.forEach((profissional) => {
     const option = document.createElement('option');
     option.value = profissional.id_profissional;
     option.textContent = `${profissional.nome_completo} — ${profissional.cargo}`;
     select.appendChild(option);
   });
+  select.value = String(user.id_profissional);
+  select.disabled = true;
   if (profissionais.length === 0) {
     select.disabled = true;
     toast(`Cadastre um profissional ativo com perfil "${perfil}" para continuar.`, true);
@@ -65,19 +102,26 @@ async function salvarAtendimentos(lista) {
   const atual = new Set(lista.map((item) => item.id).filter(Boolean));
 
   try {
+    const user = await sessao;
     for (const item of lista) {
       const previous = item.id ? persistedAtendimentos.get(item.id) : null;
       const serialized = JSON.stringify(item);
       if (!previous) {
+        const fields = ['nome', 'cpf', 'rg', 'mae', 'pai', 'nascimento', 'sexo', 'telefone', 'endereco'];
+        const data = Object.fromEntries(fields.filter((field) => Object.hasOwn(item, field)).map((field) => [field, item[field]]));
         const payload = await apiRequest('/atendimentos', {
           method: 'POST',
-          body: JSON.stringify(item)
+          body: JSON.stringify(data)
         });
         Object.assign(item, payload.dados);
       } else if (previous !== serialized) {
+        const fields = user.cargo === 'Recepcionista'
+          ? ['nome', 'cpf', 'rg', 'mae', 'pai', 'nascimento', 'sexo', 'telefone', 'endereco']
+          : user.cargo === 'Enfermeiro' ? ['triagem', 'status'] : ['medico', 'status'];
+        const data = Object.fromEntries(fields.filter((field) => Object.hasOwn(item, field)).map((field) => [field, item[field]]));
         const payload = await apiRequest(`/atendimentos/${encodeURIComponent(item.id)}`, {
           method: 'PUT',
-          body: JSON.stringify(item)
+          body: JSON.stringify(data)
         });
         Object.assign(item, payload.dados);
       }
