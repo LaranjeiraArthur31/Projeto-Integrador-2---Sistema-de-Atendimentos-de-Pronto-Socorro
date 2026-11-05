@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ENTITIES } from './repository.js';
 import { createAuth, HOME_BY_ROLE } from './auth.js';
+import { isValidCPF, isValidCouncil } from '../web/comum/documentos.js';
 
 const webPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../web');
 
@@ -64,6 +65,23 @@ export function createApp(repository) {
         typeof body.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()) ||
         !Object.hasOwn(HOME_BY_ROLE, body.cargo)) {
       return res.status(400).json({ erro: 'Informe um email válido e selecione um cargo' });
+    }
+    if (!isValidCPF(body.cpf)) {
+      return res.status(400).json({
+        erro: 'O CPF precisa ter 11 números e dígitos verificadores corretos. Confira se digitou todos os números na ordem certa.'
+      });
+    }
+    if (body.registro_conselho) {
+      const type = body.cargo === 'Medico' ? 'crm' : body.cargo === 'Enfermeiro' ? 'coren' : null;
+      if (!type || !isValidCouncil(body.registro_conselho, type)) {
+        return res.status(400).json({
+          erro: type === 'crm'
+            ? 'Informe o CRM com 6 dígitos e uma UF válida'
+            : type === 'coren'
+              ? 'Informe o COREN com 6 dígitos e uma UF válida'
+              : 'Registro de conselho não se aplica a esse cargo'
+        });
+      }
     }
     const fields = ['nome_completo', 'cpf', 'cargo', 'registro_conselho', 'especialidade', 'email', 'senha'];
     const data = Object.fromEntries(fields.filter((field) => Object.hasOwn(body, field))

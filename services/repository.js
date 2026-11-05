@@ -1,5 +1,11 @@
 import { randomBytes } from 'node:crypto';
 import { hashPassword, verifyPassword } from './auth.js';
+import {
+  isValidCPF,
+  isValidCouncil,
+  isValidRG,
+  normalizeDocument
+} from '../web/comum/documentos.js';
 
 const ENTITIES = {
   pacientes: {
@@ -76,6 +82,35 @@ function validate(config, data, creating = false) {
       throw invalid(`Valor inválido para ${field}`);
     }
   }
+  if (Object.hasOwn(data, 'cpf') && !isValidCPF(data.cpf)) {
+    throw invalid('O CPF precisa ter 11 números e dígitos verificadores corretos');
+  }
+  if (Object.hasOwn(data, 'rg') && !isValidRG(data.rg)) {
+    throw invalid('Informe um RG com 8 ou 9 caracteres; o último pode ser X');
+  }
+  if (config.table === 'profissional' && data.registro_conselho) {
+    const type = data.cargo === 'Medico' ? 'crm' : data.cargo === 'Enfermeiro' ? 'coren' : null;
+    if (!type || !isValidCouncil(data.registro_conselho, type)) {
+      throw invalid(type === 'crm'
+        ? 'Informe o CRM com 6 dígitos e uma UF válida'
+        : type === 'coren'
+          ? 'Informe o COREN com 6 dígitos e uma UF válida'
+          : 'Registro de conselho não se aplica a esse cargo');
+    }
+  }
+}
+
+function normalizeDocuments(data) {
+  const normalized = { ...data };
+  if (Object.hasOwn(normalized, 'cpf')) normalized.cpf = normalizeDocument(normalized.cpf, 'cpf');
+  if (Object.hasOwn(normalized, 'rg')) normalized.rg = normalizeDocument(normalized.rg, 'rg');
+  if (Object.hasOwn(normalized, 'registro_conselho')) {
+    normalized.registro_conselho = normalizeDocument(
+      normalized.registro_conselho,
+      normalized.cargo === 'Medico' ? 'crm' : 'coren'
+    );
+  }
+  return normalized;
 }
 
 function toDatabaseStatus(status) {
@@ -95,8 +130,8 @@ function mapAtendimento(row) {
     nome: row.nome_completo,
     nascimento: row.data_nascimento,
     sexo: row.sexo,
-    cpf: row.cpf,
-    rg: row.rg,
+    cpf: normalizeDocument(row.cpf, 'cpf'),
+    rg: normalizeDocument(row.rg, 'rg'),
     pai: row.nome_pai,
     mae: row.nome_mae,
     endereco: row.endereco,
@@ -197,6 +232,7 @@ export class PostgresRepository {
   async criar(entidade, dados) {
     const config = ENTITIES[entidade];
     validate(config, dados, true);
+    dados = normalizeDocuments(dados);
     if (entidade === 'profissionais') {
       if (typeof dados.email !== 'string') throw invalid('Email inválido');
       dados = { ...dados, senha: await hashPassword(dados.senha), email: dados.email.trim().toLowerCase() };
@@ -222,6 +258,7 @@ export class PostgresRepository {
   async atualizar(entidade, id, dados) {
     const config = ENTITIES[entidade];
     validate(config, dados);
+    dados = normalizeDocuments(dados);
     if (entidade === 'profissionais' && Object.hasOwn(dados, 'senha')) {
       dados = { ...dados, senha: await hashPassword(dados.senha) };
     }
@@ -299,14 +336,26 @@ export class PostgresRepository {
         telefone: data.telefone ?? null, endereco: data.endereco ?? null
       };
       validate(ENTITIES.pacientes, patient, true);
+      Object.assign(patient, normalizeDocuments(patient));
       const fields = Object.keys(patient);
-      const savedPatient = await client.query(`
-        INSERT INTO paciente (${fields.join(', ')})
-        VALUES (${fields.map((_, i) => `$${i + 1}`).join(', ')})
-        ON CONFLICT (cpf) DO UPDATE SET
-          ${fields.filter((field) => field !== 'cpf').map((field) => `${field} = EXCLUDED.${field}`).join(', ')}
-        RETURNING id_paciente
-      `, Object.values(patient));
+      const legacyPatient = await client.query(`
+        SELECT id_paciente FROM paciente
+         WHERE cpf <> $1 AND regexp_replace(cpf, '[^0-9]', '', 'g') = $1
+         ORDER BY id_paciente LIMIT 1 FOR UPDATE
+      `, [patient.cpf]);
+      const savedPatient = legacyPatient.rows.length
+        ? await client.query(
+          `UPDATE paciente SET ${fields.map((field) => `${field} = $${fields.indexOf(field) + 1}`).join(', ')}
+            WHERE id_paciente = $${fields.length + 1} RETURNING id_paciente`,
+          [...Object.values(patient), legacyPatient.rows[0].id_paciente]
+        )
+        : await client.query(`
+          INSERT INTO paciente (${fields.join(', ')})
+          VALUES (${fields.map((_, i) => `$${i + 1}`).join(', ')})
+          ON CONFLICT (cpf) DO UPDATE SET
+            ${fields.filter((field) => field !== 'cpf').map((field) => `${field} = EXCLUDED.${field}`).join(', ')}
+          RETURNING id_paciente
+        `, Object.values(patient));
 
       let idAtendimento = existing?.dbId;
       if (existing) {

@@ -15,7 +15,7 @@ INSERT INTO paciente (
 VALUES
 (
     'João da Silva',
-    '123.456.789-00',
+    '52998224725',
     '12345678',
     'Maria da Silva',
     'José da Silva',
@@ -27,7 +27,7 @@ VALUES
 ),
 (
     'Ana Souza',
-    '987.654.321-00',
+    '11144477735',
     '87654321',
     'Paula Souza',
     'Carlos Souza',
@@ -52,7 +52,7 @@ INSERT INTO profissional (
 VALUES
 (
     'Lucas Almeida',
-    '111.111.111-11',
+    '12345678909',
     'Recepcionista',
     NULL,
     NULL,
@@ -61,18 +61,18 @@ VALUES
 ),
 (
     'Fernanda Costa',
-    '222.222.222-22',
+    '98765432100',
     'Enfermeiro',
-    'COREN12345',
+    '123456SP',
     NULL,
     'enfermagem@hospital.com',
     '123456'
 ),
 (
     'Ricardo Oliveira',
-    '333.333.333-33',
+    '11144477735',
     'Medico',
-    'CRM54321',
+    '654321SP',
     'Clínico Geral',
     'medico@hospital.com',
     '123456'

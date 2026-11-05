@@ -90,6 +90,27 @@ GET    /profissionais
 
 A criação, exclusiva da recepção, recebe `nome`, `cpf`, `rg`, `mae`, `nascimento`, `sexo` e, opcionalmente, `pai`, `telefone` e `endereco`. O recepcionista é obtido da sessão. Gera `AT0001`, `AT0002`, etc., a partir do ID auto-incrementado, sem reutilizar códigos de registros excluídos. Pacientes são criados ou atualizados por CPF. As gravações são transacionais.
 
+Os campos de CPF e RG são formatados nas telas; a API recebe e persiste os documentos sem máscara. CPF é validado com os dígitos verificadores, RG aceita de 8 a 9 caracteres com `X` opcional no final, e registros de CRM/COREN exigem seis dígitos e uma UF válida. Essas validações também são aplicadas no servidor.
+
+### Migração de documentos
+
+O esquema novo armazena CPF em 11 caracteres, RG em até 9 e CRM/COREN como seis dígitos seguidos pela UF, sem pontuação. CPF continua único e novas restrições verificam o formato. O índice único já existente em CPF atende à busca/conflito; não há índice de registro profissional porque ele não é usado como chave de busca.
+
+Antes de migrar, faça e verifique um backup do banco:
+
+```sh
+pg_dump -Fc -h DB_HOST -U DB_USER -d DB_NAME -f backup-antes-documentos.dump
+pg_restore --list backup-antes-documentos.dump
+```
+
+Pare temporariamente as gravações do sistema e aplique, em um banco exclusivo para validação, `database/migrations/20261104_documents_up.sql`. A migração valida e normaliza os dados dentro de uma transação, bloqueia brevemente as tabelas `paciente` e `profissional` e aborta sem alterações se encontrar documentos ambíguos, duplicados após normalização ou registro CRM/COREN sem UF. Não invente a UF: corrija esses registros com a fonte oficial antes de repetir. O antigo seed de demonstração tinha registros de conselho sem UF; o seed atualizado usa valores normalizados.
+
+```sh
+psql -v ON_ERROR_STOP=1 -h DB_HOST -U DB_USER -d DB_NAME -f database/migrations/20261104_documents_up.sql
+```
+
+`database/normalize_documents.sql` executa apenas a etapa transacional de normalização e validação, sem estreitar colunas nem adicionar restrições; é opcional, pois a migration `up` já contém essa etapa. O rollback `database/migrations/20261104_documents_down.sql` remove as restrições e restaura as larguras anteriores, mas mantém os valores sem máscara: a pontuação original não pode ser recuperada exatamente. Portanto, faça backup antes de migrar e não execute `down` para tentar recuperar máscaras. A alteração não remove linhas, mas pode interromper a migration até que registros legados incompletos sejam corrigidos.
+
 A atualização aceita campos de paciente somente para recepcionistas. Enfermeiros enviam apenas `status: "aguardando-medico"` e `triagem` com `pa`, `temp`, `bpm`, `queixas` e `classificacao` (minúscula), para atendimentos aguardando triagem. Médicos enviam apenas `status` (`em-atendimento` ou `confirmado`) e `medico` com `medicacoes`, `diagnostico` e `observacoes`, após a triagem. O responsável clínico é obtido da sessão; IDs enviados no objeto clínico não substituem o usuário autenticado. Campos de outras áreas são rejeitados. Atendimentos finalizados ou cancelados não podem ser editados.
 
 | Status das telas | Status no PostgreSQL |

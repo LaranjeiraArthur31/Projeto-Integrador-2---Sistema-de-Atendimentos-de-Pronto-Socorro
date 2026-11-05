@@ -51,12 +51,16 @@
             </select>
           </div>
           <div class="field">
-            <label>CPF *</label>
-            <input type="text" id="rec-cpf" placeholder="000.000.000-00" required>
+            <label for="rec-cpf">CPF *</label>
+            <input type="text" id="rec-cpf" data-document="cpf" placeholder="000.000.000-00"
+              inputmode="numeric" aria-describedby="rec-cpf-error" required>
+            <span id="rec-cpf-error" class="document-error" aria-live="polite"></span>
           </div>
           <div class="field">
-            <label>RG *</label>
-            <input type="text" id="rec-rg" placeholder="00.000.000-0" required>
+            <label for="rec-rg">RG *</label>
+            <input type="text" id="rec-rg" data-document="rg" placeholder="00.000.000-0"
+              inputmode="numeric" aria-describedby="rec-rg-error" required>
+            <span id="rec-rg-error" class="document-error" aria-live="polite"></span>
           </div>
         </div>
       </div>
@@ -121,20 +125,9 @@
 </main>
 </div>
 
-<div class="toast" id="toast"></div>
-
-<div class="modal-bg" id="modal-bg">
-  <div class="modal">
-    <h3 id="modal-title">Confirmar ação</h3>
-    <p id="modal-text"></p>
-    <div class="actions">
-      <button class="btn btn-secondary" id="modal-cancel">Cancelar</button>
-      <button class="btn btn-danger" id="modal-confirm">Confirmar</button>
-    </div>
-  </div>
-</div>
-
+<script type="module" src="../comum/notificacoes.js"></script>
 <script src="../comum/comum.js"></script>
+<script type="module" src="../comum/documentos.js"></script>
 <script>
 /* ============================================================
    RECEPÇÃO — lógica específica desta página
@@ -148,8 +141,8 @@ formRecepcao.addEventListener('submit', async e=>{
     nome: document.getElementById('rec-nome').value.trim(),
     nascimento: document.getElementById('rec-nascimento').value,
     sexo: document.getElementById('rec-sexo').value,
-    rg: document.getElementById('rec-rg').value.trim(),
-    cpf: document.getElementById('rec-cpf').value.trim(),
+    rg: DocumentMasks.unmaskDocument(document.getElementById('rec-rg').value, 'rg'),
+    cpf: DocumentMasks.unmaskDocument(document.getElementById('rec-cpf').value, 'cpf'),
     pai: document.getElementById('rec-pai').value.trim(),
     mae: document.getElementById('rec-mae').value.trim(),
     endereco: document.getElementById('rec-endereco').value.trim(),
@@ -192,7 +185,7 @@ function renderRecepcao(){
       <td><strong>${escapeHtml(a.id)}</strong></td>
       <td>${escapeHtml(a.nome)}</td>
       <td>${a.nascimento ? escapeHtml(formatarData(a.nascimento)) : '-'}</td>
-      <td>${escapeHtml(a.cpf || '-')}</td>
+      <td>${escapeHtml(a.cpf ? DocumentMasks.formatDocument(a.cpf, 'cpf') : '-')}</td>
       <td><span class="badge ${a.status}">${STATUS_LABEL[a.status]}</span></td>
       <td>
         <button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="verAtendimento('${escapeHtml(a.id)}')">Ver</button>
@@ -207,14 +200,14 @@ function renderRecepcao(){
 function verAtendimento(id){
   const a = atendimentos.find(x=>x.id===id);
   if(!a) return;
-  let info = `Nº: ${a.id}\nPaciente: ${a.nome}\nNascimento: ${a.nascimento?formatarData(a.nascimento):'-'} (${calcularIdade(a.nascimento)})\nCPF: ${a.cpf||'-'} | RG: ${a.rg||'-'}\nPai: ${a.pai||'-'} | Mãe: ${a.mae||'-'}\nEndereço: ${a.endereco||'-'}\nTelefone: ${a.telefone||'-'}\nStatus: ${STATUS_LABEL[a.status]}`;
+  let info = `Nº: ${a.id}\nPaciente: ${a.nome}\nNascimento: ${a.nascimento?formatarData(a.nascimento):'-'} (${calcularIdade(a.nascimento)})\nCPF: ${a.cpf ? DocumentMasks.formatDocument(a.cpf, 'cpf') : '-'} | RG: ${a.rg ? DocumentMasks.formatDocument(a.rg, 'rg') : '-'}\nPai: ${a.pai||'-'} | Mãe: ${a.mae||'-'}\nEndereço: ${a.endereco||'-'}\nTelefone: ${a.telefone||'-'}\nStatus: ${STATUS_LABEL[a.status]}`;
   if(a.triagem){
     info += `\n\n--- Triagem ---\nPA: ${a.triagem.pa} | Temp: ${a.triagem.temp} | BPM: ${a.triagem.bpm}\nQueixas: ${a.triagem.queixas}\nClassificação: ${MANCHESTER_LABEL[a.triagem.classificacao]}`;
   }
   if(a.medico){
     info += `\n\n--- Atendimento Médico ---\nMedicações: ${a.medico.medicacoes}\nObservações: ${a.medico.observacoes || '-'}`;
   }
-  alert(info);
+  NotificationService.show('info', info, { duration: 12000 });
 }
 
 function editarAtendimento(id){
@@ -223,8 +216,8 @@ function editarAtendimento(id){
   document.getElementById('rec-nome').value = a.nome;
   document.getElementById('rec-nascimento').value = a.nascimento;
   document.getElementById('rec-sexo').value = a.sexo || '';
-  document.getElementById('rec-rg').value = a.rg;
-  document.getElementById('rec-cpf').value = a.cpf;
+  DocumentMasks.setInputValue(document.getElementById('rec-rg'), a.rg);
+  DocumentMasks.setInputValue(document.getElementById('rec-cpf'), a.cpf);
   document.getElementById('rec-pai').value = a.pai;
   document.getElementById('rec-mae').value = a.mae;
   document.getElementById('rec-endereco').value = a.endereco;
@@ -239,8 +232,8 @@ function editarAtendimento(id){
       nome: document.getElementById('rec-nome').value.trim(),
       nascimento: document.getElementById('rec-nascimento').value,
       sexo: document.getElementById('rec-sexo').value,
-      rg: document.getElementById('rec-rg').value.trim(),
-      cpf: document.getElementById('rec-cpf').value.trim(),
+      rg: DocumentMasks.unmaskDocument(document.getElementById('rec-rg').value, 'rg'),
+      cpf: DocumentMasks.unmaskDocument(document.getElementById('rec-cpf').value, 'cpf'),
       pai: document.getElementById('rec-pai').value.trim(),
       mae: document.getElementById('rec-mae').value.trim(),
       endereco: document.getElementById('rec-endereco').value.trim(),
@@ -255,12 +248,17 @@ function editarAtendimento(id){
       toast('Atendimento ' + editado.id + ' atualizado!');
     }).catch(() => {});
   };
-  toast('Editando atendimento ' + id + '. Ajuste os dados e clique em "Gerar Atendimento".');
+  NotificationService.show('info', 'Editando atendimento ' + id + '. Ajuste os dados e clique em "Gerar Atendimento".');
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
 async function cancelarAtendimento(id){
-  const ok = await confirmarModal('Cancelar atendimento', `Deseja realmente cancelar o atendimento ${id}? Essa ação não poderá ser desfeita.`);
+  const ok = await NotificationService.confirm({
+    title: 'Cancelar atendimento',
+    message: `Deseja realmente cancelar o atendimento ${id}? Essa ação não poderá ser desfeita.`,
+    confirmLabel: 'Cancelar atendimento',
+    destructive: true
+  });
   if(!ok) return;
   const a = atendimentos.find(x=>x.id===id);
   if(a){

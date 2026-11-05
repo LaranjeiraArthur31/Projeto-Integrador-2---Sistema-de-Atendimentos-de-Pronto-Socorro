@@ -73,10 +73,32 @@ test('API atende rotas de saúde, web, profissionais e atendimentos', async () =
     const detail = await fetch(`${baseUrl}/atendimentos/AT0001`);
     assert.equal((await detail.json()).dados.id, 'AT0001');
 
+    const invalidRegistration = await fetch(`${baseUrl}/auth/cadastro`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome_completo: 'Profissional Teste', cpf: '11111111111', cargo: 'Medico',
+        email: 'profissional@example.test', senha: 'senha-segura'
+      })
+    });
+    assert.equal(invalidRegistration.status, 400);
+    assert.match((await invalidRegistration.json()).erro, /dígitos verificadores corretos/);
+
+    const invalidCouncil = await fetch(`${baseUrl}/auth/cadastro`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome_completo: 'Profissional Teste', cpf: '52998224725', cargo: 'Medico',
+        registro_conselho: '123456/XX', email: 'profissional@example.test', senha: 'senha-segura'
+      })
+    });
+    assert.equal(invalidCouncil.status, 400);
+    assert.match((await invalidCouncil.json()).erro, /CRM/);
+
     const create = await fetch(`${baseUrl}/atendimentos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome: 'Paciente Teste', cpf: '000.000.000-00' })
+      body: JSON.stringify({ nome: 'Paciente Teste', cpf: '52998224725' })
     });
     assert.equal(create.status, 201);
     assert.equal((await create.json()).dados.id, 'AT0002');
@@ -108,13 +130,36 @@ test('repositório PostgreSQL traduz perfis para cargos e não seleciona senhas'
   );
 });
 
+test('repositório rejeita documentos inválidos antes de acessar o banco', async () => {
+  const repository = new PostgresRepository({});
+  const patient = {
+    nome_completo: 'Paciente Teste',
+    cpf: '11111111111',
+    rg: '12345678',
+    nome_mae: 'Mae Teste',
+    data_nascimento: '2000-01-01',
+    sexo: 'F'
+  };
+  await assert.rejects(repository.criar('pacientes', patient), { code: 'INVALID_DATA' });
+  await assert.rejects(repository.criar('pacientes', {
+    ...patient,
+    cpf: '52998224725',
+    rg: '1234567'
+  }), { code: 'INVALID_DATA' });
+});
+
 test('criação persiste paciente e recepcionista na mesma transação sem prontuário', async () => {
   const statements = [];
   const client = {
-    async query(sql) {
+    async query(sql, values) {
       statements.push(sql.trim().split(/\s+/).slice(0, 4).join(' '));
       if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(sql)) return { rows: [] };
-      if (sql.includes('INSERT INTO paciente')) return { rows: [{ id_paciente: 7 }] };
+      if (sql.includes('SELECT id_paciente FROM paciente')) return { rows: [] };
+      if (sql.includes('INSERT INTO paciente')) {
+        assert.equal(values[1], '52998224725');
+        assert.equal(values[2], '12345678');
+        return { rows: [{ id_paciente: 7 }] };
+      }
       if (sql.includes('SELECT id_profissional FROM profissional')) {
         return { rows: [{ id_profissional: 9 }] };
       }
@@ -125,7 +170,7 @@ test('criação persiste paciente e recepcionista na mesma transação sem pront
           id_atendimento: 42,
           numero_atendimento: 'AT0042',
           nome_completo: 'Paciente Teste',
-          cpf: '123.456.789-00',
+          cpf: '52998224725',
           data_nascimento: '1990-05-10',
           sexo: 'F',
           data_hora_chegada: '2026-10-05T10:00:00.000Z',
@@ -142,10 +187,10 @@ test('criação persiste paciente e recepcionista na mesma transação sem pront
   });
   const saved = await repository.salvarAtendimento({
     nome: 'Paciente Teste',
-    cpf: '123.456.789-00',
+    cpf: '52998224725',
     nascimento: '1990-05-10',
     sexo: 'F',
-    rg: '123456',
+    rg: '12345678',
     mae: 'Mãe Teste',
     id_profissional: 9
   });
@@ -153,6 +198,7 @@ test('criação persiste paciente e recepcionista na mesma transação sem pront
   assert.equal(saved.id, 'AT0042');
   assert.equal(saved.dbId, 42);
   assert.equal(saved.status, 'aguardando-triagem');
+  assert.equal(saved.cpf, '52998224725');
   assert.equal(statements[0], 'BEGIN');
   assert.equal(statements.at(-1), 'COMMIT');
   assert.ok(statements.every((sql) => !sql.includes('prontuario')));

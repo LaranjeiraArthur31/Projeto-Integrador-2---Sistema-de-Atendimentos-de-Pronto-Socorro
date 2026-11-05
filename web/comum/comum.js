@@ -45,17 +45,26 @@ async function carregarSessao() {
 }
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...options.headers
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...options.headers
+      }
+    });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.');
     }
-  });
+    throw error;
+  }
   if (!response.ok) {
     if (response.status === 401) window.location.replace('/auth/login.html');
-    const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.erro || `Falha na API (${response.status})`);
+    const payload = await response.json().catch(() => null);
+    throw new Error(window.NotificationService?.formatApiError?.(response.status, payload) ||
+      `Não foi possível concluir a operação (erro ${response.status}). Tente novamente.`);
   }
   if (response.status === 204) return null;
   return response.json();
@@ -162,29 +171,12 @@ const STATUS_LABEL = {
 };
 
 function toast(msg, isErr=false){
-  const t = document.getElementById('toast');
-  if(!t) return;
-  t.textContent = msg;
-  t.className = 'toast show' + (isErr ? ' err' : '');
-  setTimeout(()=> t.className = 'toast', 3500);
-}
-
-function confirmarModal(titulo, texto){
-  return new Promise(resolve=>{
-    const bg = document.getElementById('modal-bg');
-    document.getElementById('modal-title').textContent = titulo;
-    document.getElementById('modal-text').textContent = texto;
-    bg.classList.add('show');
-    const onConfirm = ()=>{ cleanup(); resolve(true); };
-    const onCancel = ()=>{ cleanup(); resolve(false); };
-    function cleanup(){
-      bg.classList.remove('show');
-      document.getElementById('modal-confirm').removeEventListener('click', onConfirm);
-      document.getElementById('modal-cancel').removeEventListener('click', onCancel);
-    }
-    document.getElementById('modal-confirm').addEventListener('click', onConfirm);
-    document.getElementById('modal-cancel').addEventListener('click', onCancel);
-  });
+  if (window.NotificationService) {
+    window.NotificationService.show(isErr ? 'error' : 'success', msg);
+  } else {
+    window.pendingNotifications = window.pendingNotifications || [];
+    window.pendingNotifications.push([isErr ? 'error' : 'success', msg]);
+  }
 }
 
 function calcularIdade(dataNasc){

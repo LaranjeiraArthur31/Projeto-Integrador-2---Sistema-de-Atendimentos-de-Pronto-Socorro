@@ -46,7 +46,7 @@ test('PostgreSQL: cadastro, login, permissões e fluxo completo por cargo', {
     await request('/atendimentos', 'GET', null, 401);
     await request('/auth/login', 'POST', { email: 'recepcao@hospital.com', senha: 'errada' }, 401);
     const registration = {
-      nome_completo: 'Profissional Teste', cpf: '777.777.777-77', cargo: 'Medico',
+      nome_completo: 'Profissional Teste', cpf: '52998224725', cargo: 'Medico',
       email: 'TESTE@example.test', senha: 'senha-apenas-de-teste', ativo: false
     };
     await request('/auth/cadastro', 'POST', { ...registration, senha: 'curta' }, 400);
@@ -76,7 +76,7 @@ test('PostgreSQL: cadastro, login, permissões e fluxo completo por cargo', {
     assert.equal(seeded.triagem.classificacao, 'verde');
 
     const patient = {
-      nome_completo: 'Paciente Teste', cpf: '999.999.999-99', rg: '99999',
+      nome_completo: 'Paciente Teste', cpf: '12345678909', rg: '12345678',
       nome_mae: 'Mae Teste', data_nascimento: '2000-01-02', sexo: 'F'
     };
     const createdPatient = await request('/pacientes', 'POST', patient, 201);
@@ -84,7 +84,7 @@ test('PostgreSQL: cadastro, login, permissões e fluxo completo por cargo', {
     assert.equal((await request(`/pacientes/${createdPatient.id_paciente}`, 'PUT', { telefone: '1234' })).telefone, '1234');
     await request(`/pacientes/${createdPatient.id_paciente}`, 'DELETE', null, 204);
     const data = {
-      nome: 'Paciente Fluxo', cpf: '888.888.888-88', rg: '88888',
+      nome: 'Paciente Fluxo', cpf: '98765432100', rg: '87654321',
       mae: 'Mae Fluxo', nascimento: '1995-03-04', sexo: 'M'
     };
     await request('/atendimentos', 'POST', { ...data, rg: '' }, 400);
