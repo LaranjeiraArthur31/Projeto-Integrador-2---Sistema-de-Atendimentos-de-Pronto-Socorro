@@ -44,7 +44,8 @@
    ============================================================ */
 function renderPainel(){
   const fila = atendimentos
-    .filter(a=> a.status === 'aguardando-medico' || a.status === 'em-atendimento')
+    // Sem triagem não há cor nem queixa: o atendimento fica fora do painel em vez de quebrá-lo.
+    .filter(a=> a.triagem && (a.status === 'aguardando-medico' || a.status === 'em-atendimento'))
     .sort((x,y)=>{
       const ox = MANCHESTER_ORDEM[x.triagem.classificacao];
       const oy = MANCHESTER_ORDEM[y.triagem.classificacao];

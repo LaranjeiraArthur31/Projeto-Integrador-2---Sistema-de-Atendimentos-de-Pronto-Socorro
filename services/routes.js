@@ -101,6 +101,10 @@ export function createApp(repository) {
     triagens: ['Enfermeiro'],
     'atendimentos-medicos': ['Medico']
   };
+  const READ_ONLY = {
+    triagens: 'Somente leitura: registre a triagem pela tela de triagem (PUT /atendimentos/:codigo)',
+    'atendimentos-medicos': 'Somente leitura: registre a consulta pela tela do médico (PUT /atendimentos/:codigo)'
+  };
   for (const entityName of Object.keys(ENTITIES)) {
     app.use(`/${entityName}`, allow(...resourceRoles[entityName]));
     if (entityName === 'profissionais') {
@@ -130,18 +134,22 @@ export function createApp(repository) {
       if (!dados) return res.status(404).json({ erro: 'Registro não encontrado' });
       res.json({ dados });
     }));
+    if (READ_ONLY[entityName]) {
+      // Triagem e consulta só são gravadas por /atendimentos, que confere o fluxo
+      // (status, triagem antes do médico, alta). Aqui fica apenas a leitura.
+      app.all([`/${entityName}`, `/${entityName}/*resto`], (req, res, next) => {
+        if (['GET', 'HEAD'].includes(req.method)) return next();
+        res.set('Allow', 'GET, HEAD');
+        res.status(405).json({ erro: READ_ONLY[entityName] });
+      });
+      continue;
+    }
     app.post(`/${entityName}`, asyncHandler(async (req, res) => {
-      const data = { ...req.body };
-      if (entityName === 'triagens') data.id_enfermeiro = req.user.id_profissional;
-      if (entityName === 'atendimentos-medicos') data.id_medico = req.user.id_profissional;
-      const dados = await repository.criar(entityName, data);
+      const dados = await repository.criar(entityName, { ...req.body });
       res.status(201).json({ dados });
     }));
     app.put(`/${entityName}/:id`, asyncHandler(async (req, res) => {
-      const data = { ...req.body };
-      if (entityName === 'triagens') data.id_enfermeiro = req.user.id_profissional;
-      if (entityName === 'atendimentos-medicos') data.id_medico = req.user.id_profissional;
-      const dados = await repository.atualizar(entityName, req.params.id, data);
+      const dados = await repository.atualizar(entityName, req.params.id, { ...req.body });
       if (!dados) return res.status(404).json({ erro: 'Registro não encontrado' });
       res.json({ dados });
     }));

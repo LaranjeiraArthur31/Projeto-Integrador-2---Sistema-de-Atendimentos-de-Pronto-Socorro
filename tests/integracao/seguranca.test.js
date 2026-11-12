@@ -51,7 +51,8 @@ test('injeção de SQL nos parâmetros da URL devolve erro tratado e não altera
     esperarStatus(resposta, 400, `GET /pacientes/${decodeURIComponent(id)}`);
     assert.equal(resposta.erro, 'Dados inválidos ou campos obrigatórios ausentes', 'a resposta não pode expor detalhes do banco');
   }
-  esperarStatus(await enfermagem.delete('/triagens/1%20OR%201%3D1'), 400, 'DELETE /triagens com OR 1=1');
+  esperarStatus(await enfermagem.get('/triagens/1%20OR%201%3D1'), 400, 'GET /triagens com OR 1=1');
+  esperarStatus(await enfermagem.delete('/triagens/1%20OR%201%3D1'), 405, 'DELETE /triagens com OR 1=1 (rota somente leitura)');
   await tabelasIntactas(amb);
   assert.equal(await contar(amb, 'paciente'), 6);
   assert.equal(await contar(amb, 'triagem'), 5);

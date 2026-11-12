@@ -135,3 +135,46 @@ test('painel: lista vazia mostra a mensagem de fila vazia', () => {
   pagina.executar('renderPainel()');
   assert.equal(pagina.elemento('painel-empty').style.display, 'none', 'com paciente na fila a mensagem some');
 });
+
+// ---------- Atendimentos sem triagem (dado antigo ou gravado fora do fluxo) ----------
+
+const SEM_TRIAGEM = [
+  atendimento('AT0040', 'aguardando-medico', null, 0),
+  atendimento('AT0041', 'em-atendimento', null, 1),
+  atendimento('AT0042', 'confirmado', null, 2, { medico: { medicacoes: 'Nenhuma' } }),
+  atendimento('AT0043', 'confirmado', null, 3, { medico: null }),
+  atendimento('AT0044', 'aguardando-medico', 'amarelo', 4)
+];
+
+test('painel: atendimentos sem triagem são ignorados em vez de quebrar a tela', () => {
+  let itens;
+  assert.doesNotThrow(() => { itens = renderizarPainel(SEM_TRIAGEM); }, 'o painel quebrou com atendimento sem triagem');
+  assert.deepEqual(itens.map((i) => i.codigo), ['AT0044'], 'só o atendimento triado deveria aparecer');
+  const pagina = carregarPagina('painel');
+  pagina.definirAtendimentos(SEM_TRIAGEM.slice(0, 2));
+  pagina.executar('renderPainel()');
+  assert.equal(pagina.elemento('painel-empty').style.display, 'block', 'sem ninguém triado, a fila aparece vazia');
+});
+
+test('médico: fila e confirmados ignoram atendimentos sem triagem em vez de quebrar', () => {
+  const pagina = carregarPagina('medico');
+  pagina.definirAtendimentos(SEM_TRIAGEM);
+  assert.doesNotThrow(() => pagina.executar('renderMedico()'), 'a fila do médico quebrou com atendimento sem triagem');
+  const opcoes = pagina.elemento('medico-select-atendimento').children.map((o) => o.value);
+  assert.deepEqual(opcoes, ['AT0044'], 'só o atendimento triado deveria aparecer na fila do médico');
+  assert.doesNotThrow(() => pagina.executar('renderConfirmados()'), 'a lista de confirmados quebrou com atendimento sem triagem');
+  assert.equal(pagina.elemento('tabela-confirmados').children.length, 0, 'confirmados sem triagem ficam fora da lista');
+});
+
+test('triagem e recepção: atendimentos sem triagem não quebram as listas', () => {
+  const triagem = carregarPagina('triagem');
+  triagem.definirAtendimentos(SEM_TRIAGEM);
+  assert.doesNotThrow(() => triagem.executar('renderTriagem()'), 'a tela de triagem quebrou');
+  assert.equal(triagem.elemento('tabela-triagem-feitas').children.length, 1, 'triagens feitas: só o atendimento triado');
+  const recepcao = carregarPagina('recepcao');
+  recepcao.definirAtendimentos(SEM_TRIAGEM);
+  assert.doesNotThrow(() => recepcao.executar('renderRecepcao()'), 'a lista da recepção quebrou');
+  for (const { id } of SEM_TRIAGEM) {
+    assert.doesNotThrow(() => recepcao.executar(`verAtendimento(${JSON.stringify(id)})`), `os detalhes de ${id} quebraram`);
+  }
+});

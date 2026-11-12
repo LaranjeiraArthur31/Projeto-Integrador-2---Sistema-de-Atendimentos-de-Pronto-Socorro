@@ -19,20 +19,27 @@ async function clientes(amb) {
   };
 }
 
-// Rotas genéricas: só o cargo dono acessa (GET 200, POST 201, PUT 200, DELETE 204);
+// /pacientes: só a recepção acessa (GET 200, POST 201, PUT 200, DELETE 204);
 // os outros recebem 403; sem login, 401.
 const RECURSOS = {
   pacientes: {
     dono: 'Recepcionista',
     novo: () => pacienteDireto(),
     alteracao: { telefone: '(19) 3333-0000' }
-  },
+  }
+};
+
+// /triagens e /atendimentos-medicos: somente leitura para o cargo dono; a gravação
+// passa obrigatoriamente por PUT /atendimentos/:codigo, que confere o fluxo.
+const SOMENTE_LEITURA = {
   triagens: {
+    tabela: 'triagem',
     dono: 'Enfermeiro',
     novo: () => ({ id_atendimento: 6, queixa_principal: 'Teste de permissão', classificacao_manchester: 'VERDE' }),
     alteracao: { queixa_principal: 'Alterada' }
   },
   'atendimentos-medicos': {
+    tabela: 'atendimento_medico',
     dono: 'Medico',
     novo: () => ({ id_atendimento: 1, diagnostico: 'Teste de permissão' }),
     alteracao: { diagnostico: 'Alterado' }
@@ -68,19 +75,40 @@ for (const [recurso, config] of Object.entries(RECURSOS)) {
   });
 }
 
-test('/triagens e /atendimentos-medicos gravam o profissional logado, não o enviado', opcoes, async (t) => {
-  const amb = await ambienteDoTeste(t);
-  const enfermagem = await amb.enfermagem();
-  const triagem = esperarStatus(await enfermagem.post('/triagens', {
-    ...RECURSOS.triagens.novo(), id_enfermeiro: USUARIOS.Medico.id
-  }), 201).dados;
-  assert.equal(triagem.id_enfermeiro, USUARIOS.Enfermeiro.id, 'a triagem deveria ficar no nome de quem está logado');
-  const medico = await amb.medico();
-  const consulta = esperarStatus(await medico.post('/atendimentos-medicos', {
-    ...RECURSOS['atendimentos-medicos'].novo(), id_medico: USUARIOS.Enfermeiro.id
-  }), 201).dados;
-  assert.equal(consulta.id_medico, USUARIOS.Medico.id, 'a consulta deveria ficar no nome de quem está logado');
-});
+for (const [recurso, config] of Object.entries(SOMENTE_LEITURA)) {
+  test(`/${recurso}: ${config.dono} só lê (POST/PUT/DELETE devolvem 405); os outros cargos recebem 403; sem login, 401`, opcoes, async (t) => {
+    const amb = await ambienteDoTeste(t);
+    const c = await clientes(amb);
+    const fotografia = async () => (await amb.query(`SELECT * FROM ${config.tabela} ORDER BY 1`)).rows;
+    const antes = await fotografia();
+    assert.ok(antes.length > 0, `os dados de demonstração deveriam ter registros em ${config.tabela}`);
+
+    for (const quem of ['Anonimo', ...CARGOS.filter((cargo) => cargo !== config.dono)]) {
+      const esperado = quem === 'Anonimo' ? 401 : 403;
+      const cliente = c[quem];
+      esperarStatus(await cliente.get(`/${recurso}`), esperado, `${quem} GET /${recurso}`);
+      esperarStatus(await cliente.post(`/${recurso}`, config.novo()), esperado, `${quem} POST /${recurso}`);
+      esperarStatus(await cliente.put(`/${recurso}/1`, config.alteracao), esperado, `${quem} PUT /${recurso}/1`);
+      esperarStatus(await cliente.delete(`/${recurso}/1`), esperado, `${quem} DELETE /${recurso}/1`);
+    }
+
+    const dono = c[config.dono];
+    const lista = esperarStatus(await dono.get(`/${recurso}`), 200, `${config.dono} GET /${recurso}`).dados;
+    assert.equal(lista.length, antes.length, 'a listagem deveria trazer todos os registros');
+    esperarStatus(await dono.get(`/${recurso}/1`), 200, `${config.dono} GET /${recurso}/1`);
+    esperarStatus(await dono.get(`/${recurso}/999`), 404, `${config.dono} GET /${recurso}/999`);
+    for (const [metodo, caminho, corpo] of [
+      ['post', `/${recurso}`, config.novo()], ['put', `/${recurso}/1`, config.alteracao],
+      ['delete', `/${recurso}/1`], ['delete', `/${recurso}/999`], ['post', `/${recurso}/1`, config.novo()],
+      ['put', `/${recurso}`, config.alteracao], ['delete', `/${recurso}`]
+    ]) {
+      const resposta = esperarStatus(await dono[metodo](caminho, corpo), 405, `${config.dono} ${metodo.toUpperCase()} ${caminho}`);
+      assert.match(resposta.erro, /^Somente leitura: registre .* pela tela/, 'a mensagem deveria explicar onde gravar');
+      assert.equal(resposta.headers.get('allow'), 'GET, HEAD');
+    }
+    assert.deepEqual(await fotografia(), antes, `nada em ${config.tabela} pode ter mudado`);
+  });
+}
 
 test('/profissionais: cada cargo vê só o próprio cadastro e não cria, altera ou apaga ninguém', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);

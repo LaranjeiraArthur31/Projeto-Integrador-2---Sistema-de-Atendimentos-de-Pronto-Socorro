@@ -97,7 +97,7 @@ function renderMedico(){
   select.innerHTML = '<option value="">Selecione um paciente aguardando atendimento...</option>';
 
   const fila = atendimentos
-    .filter(a=> a.status === 'aguardando-medico')
+    .filter(a=> a.status === 'aguardando-medico' && a.triagem)
     .sort((x,y)=> MANCHESTER_ORDEM[x.triagem.classificacao] - MANCHESTER_ORDEM[y.triagem.classificacao]);
 
   fila.forEach(a=>{
@@ -160,7 +160,7 @@ document.getElementById('form-medico').addEventListener('submit', async e=>{
 });
 
 function renderConfirmados(){
-  const confirmados = atendimentos.filter(a=>a.status==='confirmado');
+  const confirmados = atendimentos.filter(a=>a.status==='confirmado' && a.triagem);
   const tbody = document.getElementById('tabela-confirmados');
   tbody.innerHTML = '';
   document.getElementById('confirmados-empty').style.display = confirmados.length ? 'none' : 'block';
@@ -170,7 +170,7 @@ function renderConfirmados(){
       <td><strong>${escapeHtml(a.id)}</strong></td>
       <td>${escapeHtml(a.nome)}</td>
       <td><span class="manchester ${escapeHtml(a.triagem.classificacao)}">${escapeHtml(MANCHESTER_LABEL[a.triagem.classificacao])}</span></td>
-      <td>${escapeHtml(a.medico.medicacoes)}</td>
+      <td>${escapeHtml(a.medico?.medicacoes)}</td>
     `;
     tbody.appendChild(tr);
   });
