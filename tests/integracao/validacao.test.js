@@ -10,10 +10,13 @@ import {
 const opcoes = { skip: SEM_BANCO };
 const proposta = (texto) => ({ skip: SEM_BANCO, todo: `PROPOSTA (regra de negócio a decidir): ${texto}` });
 
-function hojeMais(dias) {
+// Data local (AAAA-MM-DD) daqui a N dias; com "anos", desloca também os anos.
+function hojeMais(dias, anos = 0) {
   const data = new Date();
+  data.setFullYear(data.getFullYear() + anos);
   data.setDate(data.getDate() + dias);
-  return data.toISOString().slice(0, 10);
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  return `${data.getFullYear()}-${mes}-${String(data.getDate()).padStart(2, '0')}`;
 }
 
 // ---------- Paciente ----------
@@ -59,20 +62,27 @@ test('paciente: data de nascimento inválida é recusada', opcoes, async (t) => 
   }
 });
 
-test('paciente: data de nascimento no futuro é recusada', proposta(
-  'hoje a API aceita nascimento futuro; sugestão: recusar com 400 "Data de nascimento não pode estar no futuro"'
-), async (t) => {
+test('paciente: data de nascimento no futuro é recusada com mensagem clara', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);
   const recepcao = await amb.recepcao();
-  esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ nascimento: hojeMais(30) })), 400, 'nascimento daqui a 30 dias');
+  for (const nascimento of [hojeMais(2), hojeMais(30), '2999-01-01']) {
+    const resposta = esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ nascimento })), 400, `nascimento ${nascimento}`);
+    assert.equal(resposta.erro, 'Data de nascimento não pode estar no futuro');
+  }
+  const [{ id }] = (await recepcao.get('/atendimentos')).dados;
+  esperarStatus(await recepcao.put(`/atendimentos/${id}`, { nascimento: hojeMais(30) }), 400, 'edição com nascimento futuro');
+  esperarStatus(await recepcao.post('/pacientes', { nome_completo: 'P', cpf: '123.456.789-01', rg: '1', nome_mae: 'M', data_nascimento: hojeMais(30), sexo: 'M' }), 400, 'rota /pacientes com nascimento futuro');
 });
 
-test('paciente: idade acima de 130 anos é recusada', proposta(
-  'hoje a API aceita qualquer data (ex.: 1800-01-01); sugestão: limite de 130 anos'
-), async (t) => {
+test('paciente: idade acima de 130 anos é recusada; 130 anos exatos é aceita', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);
   const recepcao = await amb.recepcao();
-  esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ nascimento: '1800-01-01' })), 400, 'nascimento em 1800');
+  for (const nascimento of ['1800-01-01', hojeMais(-1, -130)]) {
+    const resposta = esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ nascimento })), 400, `nascimento ${nascimento}`);
+    assert.equal(resposta.erro, 'Data de nascimento inválida: a idade não pode passar de 130 anos');
+  }
+  esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ nascimento: hojeMais(0, -130) })), 201, 'exatamente 130 anos');
+  esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ nascimento: '1926-01-01' })), 201, 'paciente centenário');
 });
 
 test('paciente: data de nascimento de hoje (recém-nascido) é aceita', opcoes, async (t) => {

@@ -98,6 +98,34 @@ function parseTemperatura(value) {
   return Number(text);
 }
 
+function dataLocal(data) {
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${data.getFullYear()}-${mes}-${dia}`;
+}
+
+// Recusa nascimento no futuro ou há mais de 130 anos. Datas mal formatadas seguem
+// para o banco, que já as recusa com 400.
+function validarNascimento(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return;
+  const nascimento = value.trim();
+  const agora = new Date();
+  // "Hoje" no fuso do servidor ou em UTC (o que for mais tarde), para não recusar
+  // um recém-nascido perto da meia-noite.
+  const hoje = [dataLocal(agora), agora.toISOString().slice(0, 10)].sort()[1];
+  if (nascimento > hoje) throw invalid('Data de nascimento não pode estar no futuro');
+  const limite = new Date(agora);
+  limite.setFullYear(limite.getFullYear() - 130);
+  if (nascimento < dataLocal(limite)) {
+    throw invalid('Data de nascimento inválida: a idade não pode passar de 130 anos');
+  }
+}
+
+// Regras de formato do paciente, aplicadas aos campos enviados na requisição.
+function validarPaciente(data) {
+  if (Object.hasOwn(data, 'data_nascimento')) validarNascimento(data.data_nascimento);
+}
+
 function selectedFields(config) {
   return [config.id, ...config.fields.filter((field) => field !== 'senha')];
 }
@@ -211,6 +239,7 @@ export class PostgresRepository {
   async criar(entidade, dados) {
     const config = ENTITIES[entidade];
     validate(config, dados, true);
+    if (entidade === 'pacientes') validarPaciente(dados);
     if (entidade === 'profissionais') {
       if (typeof dados.email !== 'string') throw invalid('Email inválido');
       dados = { ...dados, senha: await hashPassword(dados.senha), email: dados.email.trim().toLowerCase() };
@@ -236,6 +265,7 @@ export class PostgresRepository {
   async atualizar(entidade, id, dados) {
     const config = ENTITIES[entidade];
     validate(config, dados);
+    if (entidade === 'pacientes') validarPaciente(dados);
     if (entidade === 'profissionais' && Object.hasOwn(dados, 'senha')) {
       dados = { ...dados, senha: await hashPassword(dados.senha) };
     }
@@ -313,6 +343,11 @@ export class PostgresRepository {
         telefone: data.telefone ?? null, endereco: data.endereco ?? null
       };
       validate(ENTITIES.pacientes, patient, true);
+      // Só confere o formato do que foi enviado agora (dados antigos não travam a triagem).
+      const enviados = {};
+      if (Object.hasOwn(dados, 'nascimento')) enviados.data_nascimento = patient.data_nascimento;
+      if (Object.hasOwn(dados, 'cpf')) enviados.cpf = patient.cpf;
+      validarPaciente(enviados);
       const fields = Object.keys(patient);
       const savedPatient = await client.query(`
         INSERT INTO paciente (${fields.join(', ')})
