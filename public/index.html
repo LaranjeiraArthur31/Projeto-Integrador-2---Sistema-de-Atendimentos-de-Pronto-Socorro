@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SGPS - Pronto Socorro</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <!-- ==================== LOGIN (mock) ==================== -->
+    <div id="tela-login" class="tela-login">
+      <div class="login-caixa">
+        <h1>SGPS</h1>
+        <p class="texto-fraco">Sistema de Gestão de Pronto Socorro</p>
+
+        <form id="login-form">
+          <label for="cargo">Perfil</label>
+          <select id="cargo" required>
+            <option value="Recepcionista">Recepção</option>
+            <option value="Enfermeiro">Triagem (Enfermagem)</option>
+            <option value="Medico">Médico</option>
+          </select>
+
+          <label for="email">E-mail</label>
+          <input id="email" type="email" placeholder="teste@teste.com" required />
+
+          <label for="senha">Senha</label>
+          <input id="senha" type="password" placeholder="Digite sua senha" required />
+
+          <button type="submit">Entrar</button>
+        </form>
+
+        <p id="login-status" class="mensagem" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <!-- ==================== SISTEMA ==================== -->
+    <div id="tela-sistema" class="hidden">
+      <header class="topo">
+        <div>
+          <strong>SGPS</strong>
+          <span class="texto-fraco"> | Pronto Socorro</span>
+        </div>
+        <div class="topo-usuario">
+          <span id="usuario-info"></span>
+          <button id="logout-btn" class="btn-secundario btn-pequeno" type="button">Sair</button>
+        </div>
+      </header>
+
+      <!-- Menu: cada botão aparece apenas para o(s) cargo(s) em data-cargo -->
+      <nav class="menu" aria-label="Menu principal">
+        <button class="menu-btn" data-secao="secao-cadastro" data-cargo="Recepcionista" type="button">Cadastro de paciente</button>
+        <button class="menu-btn" data-secao="secao-pacientes" data-cargo="Recepcionista" type="button">Pacientes</button>
+        <button class="menu-btn" data-secao="secao-atendimentos" data-cargo="Recepcionista" type="button">Atendimentos</button>
+
+        <button class="menu-btn" data-secao="secao-triagem" data-cargo="Enfermeiro" type="button">Fila de triagem</button>
+
+        <button class="menu-btn" data-secao="secao-painel" data-cargo="Medico" type="button">Fila de atendimento</button>
+        <button class="menu-btn" data-secao="secao-consulta" data-cargo="Medico" type="button">Em consulta</button>
+
+        <button class="menu-btn" data-secao="secao-historico" data-cargo="Recepcionista Enfermeiro Medico" type="button">Meu histórico</button>
+      </nav>
+
+      <main class="conteudo">
+        <!-- ===== RECEPÇÃO: CADASTRO ===== -->
+        <section id="secao-cadastro" class="secao hidden">
+          <h2 id="paciente-form-titulo">Cadastro de paciente</h2>
+          <p class="texto-fraco">Campos com * são obrigatórios. Ao cadastrar, o atendimento é aberto automaticamente.</p>
+
+          <form id="paciente-form" class="caixa">
+            <input type="hidden" name="id_paciente" />
+
+            <fieldset>
+              <legend>Dados pessoais</legend>
+              <div class="grade">
+                <label>Nome completo *<input type="text" name="nome_completo" required /></label>
+                <label>Data de nascimento *<input type="date" name="data_nascimento" required /></label>
+                <label>CPF *<input type="text" name="cpf" placeholder="000.000.000-00" required /></label>
+                <label>RG *<input type="text" name="rg" required /></label>
+                <label>Sexo *
+                  <select name="sexo" required>
+                    <option value="">Selecione</option>
+                    <option value="M">Masculino</option>
+                    <option value="F">Feminino</option>
+                  </select>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Filiação</legend>
+              <div class="grade">
+                <label>Nome da mãe *<input type="text" name="nome_mae" required /></label>
+                <label>Nome do pai<input type="text" name="nome_pai" /></label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Contato</legend>
+              <div class="grade">
+                <label>Telefone<input type="text" name="telefone" /></label>
+                <label>E-mail<input type="email" name="email" /></label>
+                <label class="linha-inteira">Endereço<input type="text" name="endereco" /></label>
+              </div>
+            </fieldset>
+
+            <div class="botoes">
+              <button id="paciente-submit" type="submit">Cadastrar e abrir atendimento</button>
+              <button id="paciente-cancelar" class="btn-secundario hidden" type="button">Cancelar edição</button>
+            </div>
+            <p id="paciente-status" class="mensagem" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <!-- ===== RECEPÇÃO: PACIENTES ===== -->
+        <section id="secao-pacientes" class="secao hidden">
+          <h2>Pacientes</h2>
+          <p class="texto-fraco">Busque um paciente já cadastrado para abrir um novo atendimento ou alterar os dados.</p>
+
+          <div id="vinculo-aviso" class="aviso hidden"></div>
+
+          <div class="caixa">
+            <label class="filtro">Buscar por nome ou CPF
+              <input id="paciente-busca" type="search" placeholder="Digite o nome ou o CPF" />
+            </label>
+            <div id="paciente-lista" class="tabela-area"></div>
+            <p id="pacientes-status" class="mensagem" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <!-- ===== RECEPÇÃO: ATENDIMENTOS ===== -->
+        <section id="secao-atendimentos" class="secao hidden">
+          <h2>Atendimentos</h2>
+          <p class="texto-fraco">Só é possível alterar ou cancelar antes de o médico iniciar a consulta.</p>
+
+          <div class="caixa">
+            <div class="filtros">
+              <label class="filtro">Status
+                <select id="atendimento-filtro">
+                  <option value="">Todos</option>
+                  <option value="AGUARDANDO_TRIAGEM">Aguardando triagem</option>
+                  <option value="AGUARDANDO_MEDICO">Aguardando médico</option>
+                  <option value="EM_ATENDIMENTO">Em atendimento</option>
+                  <option value="FINALIZADO">Finalizado</option>
+                  <option value="CANCELADO">Cancelado</option>
+                </select>
+              </label>
+              <button id="atendimento-atualizar" class="btn-secundario" type="button">Atualizar</button>
+            </div>
+            <div id="atendimento-lista" class="tabela-area"></div>
+            <p id="atendimento-status" class="mensagem" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <!-- ===== TRIAGEM ===== -->
+        <section id="secao-triagem" class="secao hidden">
+          <h2>Fila de triagem</h2>
+          <p class="texto-fraco">Pacientes em ordem de chegada. Clique em "Triar" para registrar os sinais vitais.</p>
+
+          <div class="caixa">
+            <div class="filtros">
+              <button id="triagem-atualizar" class="btn-secundario" type="button">Atualizar fila</button>
+            </div>
+            <div id="fila-triagem" class="tabela-area"></div>
+          </div>
+
+          <form id="triagem-form" class="caixa hidden">
+            <h3>Registrar triagem</h3>
+            <p id="triagem-selecionado" class="destaque"></p>
+            <input type="hidden" name="id_atendimento" />
+
+            <div class="grade">
+              <label>Pressão arterial *<input type="text" name="pressao_arterial" placeholder="120x80" required /></label>
+              <label>Temperatura (°C) *<input type="number" name="temperatura" step="0.1" min="30" max="45" placeholder="36.5" required /></label>
+              <label>Frequência cardíaca (bpm) *<input type="number" name="frequencia_cardiaca" min="20" max="250" required /></label>
+              <label>Classificação de Manchester
+                <select name="classificacao_manchester">
+                  <option value="">Automática (calculada pelo sistema)</option>
+                  <option value="VERMELHO">Vermelho - Emergência</option>
+                  <option value="LARANJA">Laranja - Muito urgente</option>
+                  <option value="AMARELO">Amarelo - Urgente</option>
+                  <option value="VERDE">Verde - Pouco urgente</option>
+                  <option value="AZUL">Azul - Não urgente</option>
+                </select>
+              </label>
+              <label class="linha-inteira">Queixa principal *
+                <textarea name="queixa_principal" required></textarea>
+              </label>
+            </div>
+
+            <div class="botoes">
+              <button type="submit">Registrar triagem</button>
+              <button id="triagem-cancelar" class="btn-secundario" type="button">Cancelar</button>
+            </div>
+          </form>
+          <p id="triagem-status" class="mensagem" aria-live="polite"></p>
+        </section>
+
+        <!-- ===== MÉDICO: FILA ===== -->
+        <section id="secao-painel" class="secao hidden">
+          <h2>Fila de atendimento</h2>
+          <p class="texto-fraco">Ordenada pela classificação de Manchester e, em seguida, pela hora de chegada.</p>
+
+          <div class="caixa">
+            <div class="filtros">
+              <button id="painel-atualizar" class="btn-secundario" type="button">Atualizar fila</button>
+            </div>
+            <div id="painel-medico" class="tabela-area"></div>
+            <p id="painel-status" class="mensagem" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <!-- ===== MÉDICO: CONSULTA ===== -->
+        <section id="secao-consulta" class="secao hidden">
+          <h2>Em consulta</h2>
+          <p class="texto-fraco">Pacientes que você chamou e que ainda não receberam alta.</p>
+
+          <div class="caixa">
+            <div id="em-atendimento" class="tabela-area"></div>
+          </div>
+
+          <form id="consulta-form" class="caixa hidden">
+            <h3>Registro da consulta</h3>
+            <p id="consulta-selecionado" class="destaque"></p>
+            <div id="consulta-triagem" class="info-triagem"></div>
+            <input type="hidden" name="id_atendimento" />
+
+            <div class="grade">
+              <label class="linha-inteira">Diagnóstico *<textarea name="diagnostico" required></textarea></label>
+              <label>Medicações prescritas<textarea name="medicacoes_prescritas"></textarea></label>
+              <label>Observações<textarea name="observacoes"></textarea></label>
+            </div>
+
+            <div class="botoes">
+              <button type="submit">Finalizar atendimento (alta)</button>
+              <button id="consulta-cancelar" class="btn-secundario" type="button">Fechar</button>
+            </div>
+          </form>
+          <p id="consulta-status" class="mensagem" aria-live="polite"></p>
+        </section>
+
+        <!-- ===== HISTÓRICO (todos os perfis) ===== -->
+        <section id="secao-historico" class="secao hidden">
+          <h2>Meu histórico</h2>
+          <p id="historico-descricao" class="texto-fraco"></p>
+
+          <div class="caixa">
+            <form id="historico-form" class="filtros">
+              <label class="filtro">Data inicial<input type="date" name="data_inicio" /></label>
+              <label class="filtro">Data final<input type="date" name="data_fim" /></label>
+              <label class="filtro">Paciente ou nº do atendimento<input type="search" name="busca" /></label>
+              <button type="submit">Filtrar</button>
+              <button id="historico-limpar" class="btn-secundario" type="button">Limpar</button>
+            </form>
+
+            <p id="historico-resumo" class="resumo"></p>
+            <div id="historico-lista" class="tabela-area"></div>
+          </div>
+
+          <div id="historico-detalhe" class="caixa hidden"></div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Scripts: primeiro o código comum, depois um arquivo por perfil e, por último, o app -->
+    <script src="/js/comum.js"></script>
+    <script src="/js/recepcao.js"></script>
+    <script src="/js/triagem.js"></script>
+    <script src="/js/medico.js"></script>
+    <script src="/js/historico.js"></script>
+    <script src="/js/app.js"></script>
+  </body>
+</html>
