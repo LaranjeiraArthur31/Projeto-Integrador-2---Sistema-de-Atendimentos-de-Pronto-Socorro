@@ -98,6 +98,16 @@ function parseTemperatura(value) {
   return Number(text);
 }
 
+// Pressão arterial no formato "120/80", com "mmHg" opcional ("120/80 mmHg").
+function parsePressao(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const texto = typeof value === 'string' ? value.trim() : '';
+  if (!/^\d{2,3}\/\d{2,3}( ?mmHg)?$/i.test(texto)) {
+    throw invalid('Pressão arterial inválida: use o formato 120/80 ou 120/80 mmHg');
+  }
+  return texto;
+}
+
 function dataLocal(data) {
   const mes = String(data.getMonth() + 1).padStart(2, '0');
   const dia = String(data.getDate()).padStart(2, '0');
@@ -397,7 +407,7 @@ export class PostgresRepository {
         const values = {
           id_atendimento: idAtendimento,
           id_enfermeiro: idEnfermeiro,
-          pressao_arterial: triage.pa ?? null,
+          pressao_arterial: parsePressao(triage.pa),
           temperatura: parseTemperatura(triage.temp),
           frequencia_cardiaca: triage.bpm === '' ? null : triage.bpm ?? null,
           queixa_principal: triage.queixas,

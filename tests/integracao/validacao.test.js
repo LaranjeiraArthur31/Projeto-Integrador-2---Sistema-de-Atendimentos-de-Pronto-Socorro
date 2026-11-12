@@ -218,24 +218,25 @@ test('triagem: as cinco cores, em minúsculas ou maiúsculas, são aceitas', opc
   }
 });
 
-test('triagem: pressão nos formatos "120/80" e "120/80 mmHg" é aceita; acima de 20 caracteres, recusada', opcoes, async (t) => {
+test('triagem: pressão nos formatos "120/80" e "120/80 mmHg" é aceita', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);
   const recepcao = await amb.recepcao();
   const enfermagem = await amb.enfermagem();
-  for (const pa of ['120/80', '120/80 mmHg']) {
+  for (const pa of ['120/80', '120/80 mmHg', '90/60mmHg', '200/110 MMHG']) {
     const { id } = await criarAtendimento(recepcao);
     const resposta = await enfermagem.put(`/atendimentos/${id}`, { status: 'aguardando-medico', triagem: dadosTriagem({ pa }) });
     esperarStatus(resposta, 200, `PA "${pa}"`);
     assert.equal(resposta.dados.triagem.pa, pa);
   }
-  esperarStatus(await triagem(amb, { pa: '1'.repeat(21) }), 400, 'PA com 21 caracteres');
 });
 
-test('triagem: pressão em formato inválido é recusada', proposta(
-  'hoje "abc" ou "999" é aceito como pressão; sugestão: exigir "SIS/DIA" com "mmHg" opcional (ex.: /^\\d{2,3}\\/\\d{2,3}( ?mmHg)?$/)'
-), async (t) => {
+test('triagem: pressão em formato inválido é recusada com mensagem clara', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);
-  esperarStatus(await triagem(amb, { pa: 'abc' }), 400, 'PA "abc"');
+  for (const pa of ['abc', '999', '120', '120/', '/80', '120-80', '12/8', '1200/80', '120/80 mm', '120/80 mmHg extra',
+    '120 / 80', '1'.repeat(21), 12080, ['120/80']]) {
+    const resposta = esperarStatus(await triagem(amb, { pa }), 400, `PA ${JSON.stringify(pa)}`);
+    if (typeof pa !== 'object') assert.equal(resposta.erro, 'Pressão arterial inválida: use o formato 120/80 ou 120/80 mmHg');
+  }
 });
 
 test('triagem: temperatura com vírgula, ponto ou número é aceita', opcoes, async (t) => {

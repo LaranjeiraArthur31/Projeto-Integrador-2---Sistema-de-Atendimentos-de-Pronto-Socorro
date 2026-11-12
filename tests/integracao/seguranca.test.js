@@ -29,7 +29,7 @@ test('injeção de SQL nos campos de texto é gravada como texto comum', opcoes,
   for (const ataque of ataques) {
     const criado = await criarAtendimento(recepcao, { nome: ataque, mae: ataque, endereco: ataque });
     assert.equal(criado.nome, ataque, 'o texto deveria voltar sem alteração');
-    const triado = await triar(enfermagem, criado.id, { queixas: ataque, pa: "1'--" });
+    const triado = await triar(enfermagem, criado.id, { queixas: ataque });
     assert.equal(triado.triagem.queixas, ataque);
   }
   await tabelasIntactas(amb);
