@@ -13,7 +13,7 @@
 .eyebrow {
     font-size: 13px;
     font-weight: 700;
-    color: var(--texto-suave);
+    color: var(--principal);
     margin: 0 0 8px;
 }
 
@@ -22,8 +22,13 @@
     margin: 0;
 }
 
+.auth-card {
+    border-top: 4px solid var(--principal);
+}
+
 .auth-card h2 {
     font-size: 24px;
+    color: var(--principal-escuro);
 }
 
 .auth-card form {
@@ -41,7 +46,7 @@
 }
 
 .auth-footer a {
-    color: var(--acento);
+    color: var(--principal);
     font-weight: 600;
 }
 
@@ -52,15 +57,15 @@
 }
 
 .auth-message.success {
-    color: var(--texto);
+    color: var(--st-alta-tx);
     font-weight: 600;
 }
 
 .auth-warning {
     padding: 12px 14px;
-    background: var(--bg);
-    border: 1px solid var(--linha);
-    border-left: 4px solid var(--acento);
+    background: var(--principal-suave);
+    border: 1px solid var(--principal-borda);
+    border-left: 4px solid var(--principal);
     border-radius: var(--raio);
 }
 
