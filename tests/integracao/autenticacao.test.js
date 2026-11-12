@@ -72,6 +72,16 @@ test('cadastro com email repetido devolve 409 (também com letras maiúsculas)',
   esperarStatus(await amb.cliente().post('/auth/cadastro', cadastro({ email: USUARIOS.Medico.email })), 409, 'email de demonstração');
 });
 
+test('cadastro com CPF fora do formato é recusado; sem máscara é aceito e gravado com máscara', opcoes, async (t) => {
+  const amb = await ambienteDoTeste(t);
+  for (const cpf of ['abc', '123', '123456789012']) {
+    const resposta = esperarStatus(await amb.cliente().post('/auth/cadastro', cadastro({ cpf })), 400, `cadastro com CPF ${cpf}`);
+    assert.match(resposta.erro, /^CPF inválido/);
+  }
+  const resposta = esperarStatus(await amb.cliente().post('/auth/cadastro', cadastro({ cpf: '44455566677' })), 201, 'CPF sem máscara');
+  assert.equal(resposta.dados.cpf, '444.555.666-77');
+});
+
 test('cadastro com CPF repetido devolve 409', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);
   const dados = cadastro();

@@ -121,9 +121,23 @@ function validarNascimento(value) {
   }
 }
 
-// Regras de formato do paciente, aplicadas aos campos enviados na requisição.
-function validarPaciente(data) {
+// CPF: confere só o formato (11 dígitos, com ou sem máscara); não calcula os dígitos
+// verificadores. Grava sempre com máscara, para que "12345678900" e "123.456.789-00"
+// sejam o mesmo CPF.
+function normalizarCpf(value) {
+  const texto = typeof value === 'string' ? value.trim() : '';
+  if (!/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(texto)) {
+    throw invalid('CPF inválido: informe 11 dígitos, com ou sem máscara (ex.: 123.456.789-00)');
+  }
+  const d = texto.replace(/\D/g, '');
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+// Regras de formato aplicadas aos campos enviados na requisição; devolve os dados
+// com o CPF já normalizado.
+function validarPessoa(data) {
   if (Object.hasOwn(data, 'data_nascimento')) validarNascimento(data.data_nascimento);
+  return Object.hasOwn(data, 'cpf') ? { ...data, cpf: normalizarCpf(data.cpf) } : data;
 }
 
 function selectedFields(config) {
@@ -239,7 +253,7 @@ export class PostgresRepository {
   async criar(entidade, dados) {
     const config = ENTITIES[entidade];
     validate(config, dados, true);
-    if (entidade === 'pacientes') validarPaciente(dados);
+    if (['pacientes', 'profissionais'].includes(entidade)) dados = validarPessoa(dados);
     if (entidade === 'profissionais') {
       if (typeof dados.email !== 'string') throw invalid('Email inválido');
       dados = { ...dados, senha: await hashPassword(dados.senha), email: dados.email.trim().toLowerCase() };
@@ -265,7 +279,7 @@ export class PostgresRepository {
   async atualizar(entidade, id, dados) {
     const config = ENTITIES[entidade];
     validate(config, dados);
-    if (entidade === 'pacientes') validarPaciente(dados);
+    if (['pacientes', 'profissionais'].includes(entidade)) dados = validarPessoa(dados);
     if (entidade === 'profissionais' && Object.hasOwn(dados, 'senha')) {
       dados = { ...dados, senha: await hashPassword(dados.senha) };
     }
@@ -347,7 +361,7 @@ export class PostgresRepository {
       const enviados = {};
       if (Object.hasOwn(dados, 'nascimento')) enviados.data_nascimento = patient.data_nascimento;
       if (Object.hasOwn(dados, 'cpf')) enviados.cpf = patient.cpf;
-      validarPaciente(enviados);
+      Object.assign(patient, validarPessoa(enviados));
       const fields = Object.keys(patient);
       const savedPatient = await client.query(`
         INSERT INTO paciente (${fields.join(', ')})

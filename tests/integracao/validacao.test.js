@@ -112,7 +112,8 @@ test('paciente: textos acima do limite das colunas são recusados com 400', opco
     esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ [campo]: noLimite })), 201, `${campo} com ${limite} caracteres`);
     const resposta = await recepcao.post('/atendimentos', dadosPaciente({ [campo]: 'a'.repeat(limite + 1) }));
     esperarStatus(resposta, 400, `${campo} com ${limite + 1} caracteres`);
-    assert.equal(resposta.erro, 'Dados inválidos ou campos obrigatórios ausentes');
+    // O CPF é barrado antes pela regra de formato, com mensagem própria.
+    assert.equal(resposta.erro, campo === 'cpf' ? MSG_CPF : 'Dados inválidos ou campos obrigatórios ausentes');
   }
   esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ nome: 'a'.repeat(100_000) })), 400, 'nome com 100 mil caracteres');
 });
@@ -146,13 +147,44 @@ test('paciente: número em campo de texto é recusado', proposta(
   esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ nome: 123 })), 400, 'nome numérico');
 });
 
-test('paciente: CPF com dígitos verificadores inválidos é recusado', proposta(
-  'hoje qualquer texto até 14 caracteres é aceito como CPF; sugestão: validar formato e dígitos'
-), async (t) => {
+const MSG_CPF = 'CPF inválido: informe 11 dígitos, com ou sem máscara (ex.: 123.456.789-00)';
+
+test('paciente: CPF fora do formato de 11 dígitos é recusado com mensagem clara', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);
   const recepcao = await amb.recepcao();
-  esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ cpf: '111.111.111-12' })), 400, 'CPF com dígito errado');
-  esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ cpf: 'abc' })), 400, 'CPF "abc"');
+  for (const cpf of ['abc', '123', '1234567890', '123456789012', '123.456.789-0', '123.456.789-001',
+    'abc.def.ghi-jk', '123 456 789 00', '123/456/789-00', 12345678900]) {
+    const resposta = esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ cpf })), 400, `CPF ${JSON.stringify(cpf)}`);
+    assert.equal(resposta.erro, MSG_CPF);
+  }
+  esperarStatus(await recepcao.post('/pacientes', { nome_completo: 'P', cpf: '123', rg: '1', nome_mae: 'M', data_nascimento: '1990-01-01', sexo: 'M' }), 400, 'rota /pacientes com CPF "123"');
+  const [{ id }] = (await recepcao.get('/atendimentos')).dados;
+  esperarStatus(await recepcao.put(`/atendimentos/${id}`, { cpf: '123' }), 400, 'edição com CPF "123"');
+});
+
+test('paciente: CPF com ou sem máscara é aceito, sem conferir dígitos verificadores, e gravado com máscara', opcoes, async (t) => {
+  const amb = await ambienteDoTeste(t);
+  const recepcao = await amb.recepcao();
+  for (const [cpf, gravado] of [['111.111.111-12', '111.111.111-12'], ['98765432100', '987.654.321-00'], [' 555.444.333-22 ', '555.444.333-22']]) {
+    const resposta = esperarStatus(await recepcao.post('/atendimentos', dadosPaciente({ cpf })), 201, `CPF ${JSON.stringify(cpf)}`);
+    assert.equal(resposta.dados.cpf, gravado, `CPF ${JSON.stringify(cpf)} deveria ser gravado como ${gravado}`);
+  }
+  const pacientes = await contar(amb, 'paciente');
+  await criarAtendimento(recepcao, { cpf: '98765432100' });
+  assert.equal(await contar(amb, 'paciente'), pacientes, 'o mesmo CPF sem máscara não pode criar outro paciente');
+});
+
+test('paciente: os CPFs dos dados de demonstração (insert.sql) passam na validação', opcoes, async (t) => {
+  const amb = await ambienteDoTeste(t);
+  const recepcao = await amb.recepcao();
+  const { rows } = await amb.query("SELECT a.numero_atendimento, p.cpf FROM atendimento a JOIN paciente p USING (id_paciente) WHERE a.status NOT IN ('FINALIZADO', 'CANCELADO') ORDER BY 1");
+  assert.ok(rows.length >= 3, 'os dados de demonstração deveriam ter atendimentos em aberto');
+  for (const { numero_atendimento: id, cpf } of rows) {
+    const resposta = esperarStatus(await recepcao.put(`/atendimentos/${id}`, { cpf }), 200, `reenviar o CPF ${cpf} do ${id}`);
+    assert.equal(resposta.dados.cpf, cpf);
+  }
+  const todos = await amb.query('SELECT cpf FROM paciente UNION ALL SELECT cpf FROM profissional');
+  for (const { cpf } of todos.rows) assert.match(cpf, /^\d{3}\.\d{3}\.\d{3}-\d{2}$/, `CPF de demonstração fora do formato: ${cpf}`);
 });
 
 // ---------- Triagem ----------

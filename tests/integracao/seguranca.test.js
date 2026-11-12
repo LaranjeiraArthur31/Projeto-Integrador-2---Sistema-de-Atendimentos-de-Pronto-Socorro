@@ -136,7 +136,7 @@ test('caminhos com ../ não saem da pasta web', opcoes, async (t) => {
 test('erros internos não expõem detalhes do banco', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);
   const recepcao = await amb.recepcao();
-  const resposta = await recepcao.post('/atendimentos', { nome: 'x'.repeat(200), cpf: '1', rg: '1', mae: 'M', nascimento: '2000-01-01', sexo: 'F' });
+  const resposta = await recepcao.post('/atendimentos', { nome: 'x'.repeat(200), cpf: '123.456.789-09', rg: '1', mae: 'M', nascimento: '2000-01-01', sexo: 'F' });
   esperarStatus(resposta, 400);
   assert.ok(!/value too long|character varying|postgres|stack/i.test(resposta.texto), `mensagem técnica exposta: ${resposta.texto}`);
   const triagem = await (await amb.enfermagem()).put('/atendimentos/AT0006', { status: 'aguardando-medico', triagem: dadosTriagem({ bpm: 'abc' }) });
