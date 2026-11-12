@@ -13,7 +13,7 @@ form.addEventListener('submit', async (event) => {
   delete data.confirmacao;
   const button = form.querySelector('button[type="submit"]');
   button.disabled = true;
-  message.textContent = registering ? 'Criando sua conta...' : 'Entrando...';
+  message.textContent = registering ? 'Cadastrando...' : 'Entrando...';
   try {
     const response = await fetch(registering ? '/auth/cadastro' : '/auth/login', {
       method: 'POST',
@@ -25,7 +25,7 @@ form.addEventListener('submit', async (event) => {
     if (registering) {
       form.reset();
       message.className = 'auth-message success';
-      message.textContent = 'Conta criada! Use o link Entrar abaixo para acessar sua área.';
+      message.textContent = 'Cadastro concluído. Use o link "Entrar" abaixo para acessar o sistema.';
     } else {
       window.location.replace(payload.destino);
     }

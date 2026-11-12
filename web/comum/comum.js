@@ -149,7 +149,7 @@ function proximoNumero() {
 
 const MANCHESTER_ORDEM = { vermelho:1, laranja:2, amarelo:3, verde:4, azul:5 };
 const MANCHESTER_LABEL = {
-  vermelho:'🔴 Vermelho', laranja:'🟠 Laranja', amarelo:'🟡 Amarelo', verde:'🟢 Verde', azul:'🔵 Azul'
+  vermelho:'Vermelho', laranja:'Laranja', amarelo:'Amarelo', verde:'Verde', azul:'Azul'
 };
 const STATUS_LABEL = {
   'aguardando-recepcao':'Aguardando Recepção',
@@ -174,16 +174,22 @@ function confirmarModal(titulo, texto){
     const bg = document.getElementById('modal-bg');
     document.getElementById('modal-title').textContent = titulo;
     document.getElementById('modal-text').textContent = texto;
+    const anterior = document.activeElement;
     bg.classList.add('show');
+    document.getElementById('modal-cancel').focus();
     const onConfirm = ()=>{ cleanup(); resolve(true); };
     const onCancel = ()=>{ cleanup(); resolve(false); };
+    const onKey = (e)=>{ if(e.key === 'Escape') onCancel(); };
     function cleanup(){
       bg.classList.remove('show');
       document.getElementById('modal-confirm').removeEventListener('click', onConfirm);
       document.getElementById('modal-cancel').removeEventListener('click', onCancel);
+      document.removeEventListener('keydown', onKey);
+      if(anterior && anterior.focus) anterior.focus();
     }
     document.getElementById('modal-confirm').addEventListener('click', onConfirm);
     document.getElementById('modal-cancel').addEventListener('click', onCancel);
+    document.addEventListener('keydown', onKey);
   });
 }
 

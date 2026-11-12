@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atendimento Médico — Pronto Socorro</title>
+<title>Atendimento Médico — Pronto-Socorro</title>
 <link rel="stylesheet" href="medico.css">
 </head>
 <body>
@@ -11,14 +11,14 @@
 <div class="app">
 <aside class="sidebar">
   <div class="brand">
-    <div class="logo">🏥</div>
-    <h1>Pronto Socorro<br>Painel de Atendimentos</h1>
+    <div class="logo" aria-hidden="true">PS</div>
+    <h1>Pronto-Socorro<br>Sistema de Atendimentos</h1>
   </div>
-  <nav>
-    <a href="../recepcao/recepcao.html"><span class="ic">📋</span>Recepção</a>
-    <a href="../triagem/triagem.html"><span class="ic">🩺</span>Triagem</a>
-    <a href="../painel/painel.html"><span class="ic">📺</span>Painel de Atendimento</a>
-    <a href="./medico.html" class="active"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
+  <nav aria-label="Menu principal">
+    <a href="../recepcao/recepcao.html">Recepção</a>
+    <a href="../triagem/triagem.html">Triagem</a>
+    <a href="../painel/painel.html">Painel de Atendimento</a>
+    <a href="./medico.html" class="active">Atendimento Médico</a>
   </nav>
   <div class="relogio" id="relogio"></div>
 </aside>
@@ -47,21 +47,21 @@
 
       <form id="form-medico">
         <div class="field full">
-          <label>Médico responsável *</label>
+          <label for="md-profissional">Médico responsável *</label>
           <select id="md-profissional" required>
             <option value="">Selecione um profissional...</option>
           </select>
         </div>
         <div class="field full">
-          <label>Diagnóstico</label>
+          <label for="md-diagnostico">Diagnóstico</label>
           <textarea id="md-diagnostico" placeholder="Ex: Cefaleia tensional"></textarea>
         </div>
         <div class="field full" style="margin-top:12px;">
-          <label>Medicações prescritas *</label>
+          <label for="md-medicacoes">Medicações prescritas *</label>
           <textarea id="md-medicacoes" placeholder="Ex: Dipirona 1g EV, Soro fisiológico 500ml..." required></textarea>
         </div>
         <div class="field full" style="margin-top:12px;">
-          <label>Observações da consulta</label>
+          <label for="md-observacoes">Observações da consulta</label>
           <textarea id="md-observacoes" placeholder="Orientações, encaminhamentos..."></textarea>
         </div>
         <div class="actions">
@@ -84,7 +84,7 @@
 </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="../comum/comum.js"></script>
 <script>
@@ -155,7 +155,7 @@ document.getElementById('form-medico').addEventListener('submit', async e=>{
   }
 
   document.getElementById('medico-detalhe').style.display = 'none';
-  toast('Atendimento ' + id + ' confirmado com sucesso!');
+  toast('Atendimento ' + id + ' confirmado.');
   renderMedico();
 });
 

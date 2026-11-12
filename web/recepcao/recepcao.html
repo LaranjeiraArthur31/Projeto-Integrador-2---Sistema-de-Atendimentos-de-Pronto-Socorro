@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Recepção — Pronto Socorro</title>
+<title>Recepção — Pronto-Socorro</title>
 <link rel="stylesheet" href="./recepcao.css">
 </head>
 <body>
@@ -11,14 +11,14 @@
 <div class="app">
 <aside class="sidebar">
   <div class="brand">
-    <div class="logo">🏥</div>
-    <h1>Pronto Socorro<br>Painel de Atendimentos</h1>
+    <div class="logo" aria-hidden="true">PS</div>
+    <h1>Pronto-Socorro<br>Sistema de Atendimentos</h1>
   </div>
-  <nav>
-    <a href="./recepcao.html" class="active"><span class="ic">📋</span>Recepção</a>
-    <a href="../triagem/triagem.html"><span class="ic">🩺</span>Triagem</a>
-    <a href="../painel/painel.html"><span class="ic">📺</span>Painel de Atendimento</a>
-    <a href="../medico/medico.html"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
+  <nav aria-label="Menu principal">
+    <a href="./recepcao.html" class="active">Recepção</a>
+    <a href="../triagem/triagem.html">Triagem</a>
+    <a href="../painel/painel.html">Painel de Atendimento</a>
+    <a href="../medico/medico.html">Atendimento Médico</a>
   </nav>
   <div class="relogio" id="relogio"></div>
 </aside>
@@ -35,15 +35,15 @@
         <p class="grupo-titulo">Dados pessoais</p>
         <div class="grid">
           <div class="field full">
-            <label>Nome completo *</label>
+            <label for="rec-nome">Nome completo *</label>
             <input type="text" id="rec-nome" required>
           </div>
           <div class="field">
-            <label>Data de nascimento *</label>
+            <label for="rec-nascimento">Data de nascimento *</label>
             <input type="date" id="rec-nascimento" required>
           </div>
           <div class="field">
-            <label>Sexo *</label>
+            <label for="rec-sexo">Sexo *</label>
             <select id="rec-sexo" required>
               <option value="">Selecione...</option>
               <option value="F">Feminino</option>
@@ -51,11 +51,11 @@
             </select>
           </div>
           <div class="field">
-            <label>CPF *</label>
+            <label for="rec-cpf">CPF *</label>
             <input type="text" id="rec-cpf" placeholder="000.000.000-00" required>
           </div>
           <div class="field">
-            <label>RG *</label>
+            <label for="rec-rg">RG *</label>
             <input type="text" id="rec-rg" placeholder="00.000.000-0" required>
           </div>
         </div>
@@ -65,11 +65,11 @@
         <p class="grupo-titulo">Filiação</p>
         <div class="grid">
           <div class="field">
-            <label>Nome do pai</label>
+            <label for="rec-pai">Nome do pai</label>
             <input type="text" id="rec-pai">
           </div>
           <div class="field">
-            <label>Nome da mãe *</label>
+            <label for="rec-mae">Nome da mãe *</label>
             <input type="text" id="rec-mae" required>
           </div>
         </div>
@@ -79,15 +79,15 @@
         <p class="grupo-titulo">Contato</p>
         <div class="grid">
           <div class="field full">
-            <label>Endereço</label>
+            <label for="rec-endereco">Endereço</label>
             <input type="text" id="rec-endereco" placeholder="Rua, número, bairro, cidade">
           </div>
           <div class="field">
-            <label>Telefone</label>
+            <label for="rec-telefone">Telefone</label>
             <input type="text" id="rec-telefone" placeholder="(00) 00000-0000">
           </div>
           <div class="field">
-            <label>Atendente responsável *</label>
+            <label for="rec-profissional">Atendente responsável *</label>
             <select id="rec-profissional" required>
               <option value="">Selecione um profissional...</option>
             </select>
@@ -121,10 +121,20 @@
 </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="modal-bg" id="modal-ver">
+  <div class="modal modal-largo" role="dialog" aria-modal="true" aria-labelledby="ver-titulo">
+    <h3 id="ver-titulo">Atendimento</h3>
+    <div id="ver-conteudo"></div>
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" id="ver-fechar">Fechar</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-bg" id="modal-bg">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <h3 id="modal-title">Confirmar ação</h3>
     <p id="modal-text"></p>
     <div class="actions">
@@ -179,7 +189,7 @@ formRecepcao.addEventListener('submit', async e=>{
     }
     formRecepcao.reset();
     renderRecepcao();
-    toast('Atendimento ' + editId + ' atualizado!');
+    toast('Atendimento ' + editId + ' atualizado.');
     return;
   }
   const novo = {
@@ -201,7 +211,7 @@ formRecepcao.addEventListener('submit', async e=>{
   }
   formRecepcao.reset();
   renderRecepcao();
-  toast('Atendimento ' + novo.id + ' gerado com sucesso!');
+  toast('Atendimento ' + novo.id + ' gerado.');
 });
 
 document.getElementById('rec-busca').addEventListener('input', renderRecepcao);
@@ -226,27 +236,67 @@ function renderRecepcao(){
       <td>${escapeHtml(a.cpf || '-')}</td>
       <td><span class="badge ${a.status}">${STATUS_LABEL[a.status]}</span></td>
       <td>
-        <button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="verAtendimento('${escapeHtml(a.id)}')">Ver</button>
-        ${podeEditar ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="editarAtendimento('${escapeHtml(a.id)}')">Editar</button>
-        <button class="btn btn-danger" style="padding:6px 10px;font-size:12px;" onclick="cancelarAtendimento('${escapeHtml(a.id)}')">Cancelar</button>` : ''}
+        <button class="btn btn-secondary btn-sm" onclick="verAtendimento('${escapeHtml(a.id)}')">Ver</button>
+        ${podeEditar ? `<button class="btn btn-secondary btn-sm" onclick="editarAtendimento('${escapeHtml(a.id)}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="cancelarAtendimento('${escapeHtml(a.id)}')">Cancelar</button>` : ''}
       </td>
     `;
     tbody.appendChild(tr);
   });
 }
 
+// Detalhes do atendimento em um painel na própria página (sem alert).
+const modalVer = document.getElementById('modal-ver');
+let focoAntesDoVer = null;
+
+function linhaDetalhe(rotulo, valor, html = false){
+  const conteudo = html ? valor : escapeHtml(valor === undefined || valor === null || valor === '' ? '-' : valor);
+  return `<div class="detail-row"><span>${escapeHtml(rotulo)}</span><span>${conteudo}</span></div>`;
+}
+
 function verAtendimento(id){
   const a = atendimentos.find(x=>x.id===id);
   if(!a) return;
-  let info = `Nº: ${a.id}\nPaciente: ${a.nome}\nNascimento: ${a.nascimento?formatarData(a.nascimento):'-'} (${calcularIdade(a.nascimento)})\nCPF: ${a.cpf||'-'} | RG: ${a.rg||'-'}\nPai: ${a.pai||'-'} | Mãe: ${a.mae||'-'}\nEndereço: ${a.endereco||'-'}\nTelefone: ${a.telefone||'-'}\nStatus: ${STATUS_LABEL[a.status]}`;
+  const nascimento = a.nascimento ? `${formatarData(a.nascimento)} (${calcularIdade(a.nascimento)})` : '-';
+  let html = linhaDetalhe('Paciente', a.nome)
+    + linhaDetalhe('Nascimento', nascimento)
+    + linhaDetalhe('CPF', a.cpf)
+    + linhaDetalhe('RG', a.rg)
+    + linhaDetalhe('Nome do pai', a.pai)
+    + linhaDetalhe('Nome da mãe', a.mae)
+    + linhaDetalhe('Endereço', a.endereco)
+    + linhaDetalhe('Telefone', a.telefone)
+    + linhaDetalhe('Status', STATUS_LABEL[a.status]);
   if(a.triagem){
-    info += `\n\n--- Triagem ---\nPA: ${a.triagem.pa} | Temp: ${a.triagem.temp} | BPM: ${a.triagem.bpm}\nQueixas: ${a.triagem.queixas}\nClassificação: ${MANCHESTER_LABEL[a.triagem.classificacao]}`;
+    html += '<h4>Triagem</h4>'
+      + linhaDetalhe('Pressão arterial', a.triagem.pa)
+      + linhaDetalhe('Temperatura', a.triagem.temp ? `${a.triagem.temp} °C` : '')
+      + linhaDetalhe('Batimentos', a.triagem.bpm ? `${a.triagem.bpm} bpm` : '')
+      + linhaDetalhe('Queixas', a.triagem.queixas)
+      + linhaDetalhe('Classificação',
+          `<span class="manchester ${escapeHtml(a.triagem.classificacao)}">${escapeHtml(MANCHESTER_LABEL[a.triagem.classificacao])}</span>`, true);
   }
   if(a.medico){
-    info += `\n\n--- Atendimento Médico ---\nMedicações: ${a.medico.medicacoes}\nObservações: ${a.medico.observacoes || '-'}`;
+    html += '<h4>Atendimento médico</h4>'
+      + linhaDetalhe('Diagnóstico', a.medico.diagnostico)
+      + linhaDetalhe('Medicações', a.medico.medicacoes)
+      + linhaDetalhe('Observações', a.medico.observacoes);
   }
-  alert(info);
+  document.getElementById('ver-titulo').textContent = 'Atendimento ' + a.id;
+  document.getElementById('ver-conteudo').innerHTML = html;
+  focoAntesDoVer = document.activeElement;
+  modalVer.classList.add('show');
+  document.getElementById('ver-fechar').focus();
 }
+
+function fecharVer(){
+  if(!modalVer.classList.contains('show')) return;
+  modalVer.classList.remove('show');
+  if(focoAntesDoVer && focoAntesDoVer.focus) focoAntesDoVer.focus();
+}
+document.getElementById('ver-fechar').addEventListener('click', fecharVer);
+modalVer.addEventListener('click', e=>{ if(e.target === modalVer) fecharVer(); });
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') fecharVer(); });
 
 function editarAtendimento(id){
   const a = atendimentos.find(x=>x.id===id);

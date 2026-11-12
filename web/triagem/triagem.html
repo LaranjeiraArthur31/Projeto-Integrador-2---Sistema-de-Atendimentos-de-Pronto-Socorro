@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Triagem — Pronto Socorro</title>
+<title>Triagem — Pronto-Socorro</title>
 <link rel="stylesheet" href="triagem.css">
 </head>
 <body>
@@ -11,14 +11,14 @@
 <div class="app">
 <aside class="sidebar">
   <div class="brand">
-    <div class="logo">🏥</div>
-    <h1>Pronto Socorro<br>Painel de Atendimentos</h1>
+    <div class="logo" aria-hidden="true">PS</div>
+    <h1>Pronto-Socorro<br>Sistema de Atendimentos</h1>
   </div>
-  <nav>
-    <a href="../recepcao/recepcao.html"><span class="ic">📋</span>Recepção</a>
-    <a href="./triagem.html" class="active"><span class="ic">🩺</span>Triagem</a>
-    <a href="../painel/painel.html"><span class="ic">📺</span>Painel de Atendimento</a>
-    <a href="../medico/medico.html"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
+  <nav aria-label="Menu principal">
+    <a href="../recepcao/recepcao.html">Recepção</a>
+    <a href="./triagem.html" class="active">Triagem</a>
+    <a href="../painel/painel.html">Painel de Atendimento</a>
+    <a href="../medico/medico.html">Atendimento Médico</a>
   </nav>
   <div class="relogio" id="relogio"></div>
 </aside>
@@ -47,19 +47,19 @@
         <p class="grupo-titulo">Sinais vitais</p>
         <div class="grid">
           <div class="field">
-            <label>Pressão arterial (ex: 120/80 mmHg) *</label>
+            <label for="tri-pa">Pressão arterial (ex: 120/80 mmHg) *</label>
             <input type="text" id="tri-pa" required>
           </div>
           <div class="field">
-            <label>Temperatura corporal (°C) *</label>
+            <label for="tri-temp">Temperatura corporal (°C) *</label>
             <input type="text" id="tri-temp" required>
           </div>
           <div class="field">
-            <label>Batimentos cardíacos (bpm) *</label>
+            <label for="tri-bpm">Batimentos cardíacos (bpm) *</label>
             <input type="text" id="tri-bpm" required>
           </div>
           <div class="field">
-            <label>Enfermeiro responsável *</label>
+            <label for="tri-profissional">Enfermeiro responsável *</label>
             <select id="tri-profissional" required>
               <option value="">Selecione um profissional...</option>
             </select>
@@ -71,18 +71,18 @@
         <p class="grupo-titulo">Avaliação</p>
         <div class="grid">
           <div class="field full">
-            <label>Principais queixas *</label>
+            <label for="tri-queixas">Principais queixas *</label>
             <textarea id="tri-queixas" placeholder="Ex: dor de cabeça, náusea, dor muscular..." required></textarea>
           </div>
           <div class="field full">
-            <label>Classificação — Protocolo de Manchester *</label>
+            <label for="tri-classificacao">Classificação — Protocolo de Manchester *</label>
             <select id="tri-classificacao" required>
               <option value="">Selecione a classificação...</option>
-              <option value="vermelho">🔴 Vermelho — Emergência (atendimento imediato)</option>
-              <option value="laranja">🟠 Laranja — Muito urgente (até 10 min)</option>
-              <option value="amarelo">🟡 Amarelo — Urgente (até 60 min)</option>
-              <option value="verde">🟢 Verde — Pouco urgente (até 120 min)</option>
-              <option value="azul">🔵 Azul — Não urgente (até 240 min)</option>
+              <option value="vermelho">Vermelho — Emergência (atendimento imediato)</option>
+              <option value="laranja">Laranja — Muito urgente (até 10 min)</option>
+              <option value="amarelo">Amarelo — Urgente (até 60 min)</option>
+              <option value="verde">Verde — Pouco urgente (até 120 min)</option>
+              <option value="azul">Azul — Não urgente (até 240 min)</option>
             </select>
           </div>
         </div>
@@ -108,7 +108,7 @@
 </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="../comum/comum.js"></script>
 <script>
@@ -126,7 +126,7 @@ function renderTriagem(){
       <td><strong>${escapeHtml(a.id)}</strong></td>
       <td>${escapeHtml(a.nome)}</td>
       <td>${new Date(a.criadoEm).toLocaleString('pt-BR')}</td>
-      <td><button class="btn btn-primary" style="padding:6px 12px;font-size:12px;" onclick="abrirTriagem('${escapeHtml(a.id)}')">Iniciar Triagem</button></td>
+      <td><button class="btn btn-primary btn-sm" onclick="abrirTriagem('${escapeHtml(a.id)}')">Iniciar Triagem</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -183,7 +183,7 @@ document.getElementById('form-triagem').addEventListener('submit', async e=>{
   }
   document.getElementById('card-form-triagem').style.display = 'none';
   renderTriagem();
-  toast('Triagem do atendimento ' + id + ' concluída!');
+  toast('Triagem do atendimento ' + id + ' concluída.');
 });
 
 window.addEventListener('DOMContentLoaded', async () => {

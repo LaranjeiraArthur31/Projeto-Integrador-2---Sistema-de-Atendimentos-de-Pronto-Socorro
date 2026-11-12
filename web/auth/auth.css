@@ -5,22 +5,21 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: center;
-    max-width: 504px;
+    max-width: 480px;
     margin: auto;
-    padding: 48px 32px;
+    padding: 48px 24px;
 }
 
 .eyebrow {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 2px;
-    color: var(--azul);
+    color: var(--texto-suave);
+    margin: 0 0 8px;
 }
 
 .auth-card {
-    padding: 32px;
+    padding: 28px 32px 32px;
     margin: 0;
-    box-shadow: 0 12px 40px #1e3a5f0d;
 }
 
 .auth-card h2 {
@@ -42,32 +41,35 @@
 }
 
 .auth-footer a {
-    color: var(--azul);
+    color: var(--acento);
     font-weight: 600;
 }
 
 .auth-message {
     margin: 0;
-    color: var(--verm);
+    color: var(--perigo);
     min-height: 20px;
 }
 
 .auth-message.success {
-    color: var(--verde);
+    color: var(--texto);
+    font-weight: 600;
 }
 
 .auth-warning {
-    padding: 16px;
-    background: var(--azul-suave);
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--linha);
+    border-left: 4px solid var(--acento);
     border-radius: var(--raio);
 }
 
-@media(max-width:720px) {
+@media (max-width: 720px) {
     .auth-layout {
         padding: 24px 16px;
     }
 
     .auth-card {
-        padding: 24px;
+        padding: 22px;
     }
 }

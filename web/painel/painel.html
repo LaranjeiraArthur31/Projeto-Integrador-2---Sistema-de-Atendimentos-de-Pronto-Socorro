@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Painel de Atendimento — Pronto Socorro</title>
+<title>Painel de Atendimento — Pronto-Socorro</title>
 <link rel="stylesheet" href="painel.css">
 </head>
 <body>
@@ -11,21 +11,21 @@
 <div class="app">
 <aside class="sidebar">
   <div class="brand">
-    <div class="logo">🏥</div>
-    <h1>Pronto Socorro<br>Painel de Atendimentos</h1>
+    <div class="logo" aria-hidden="true">PS</div>
+    <h1>Pronto-Socorro<br>Sistema de Atendimentos</h1>
   </div>
-  <nav>
-    <a href="../recepcao/recepcao.html"><span class="ic">📋</span>Recepção</a>
-    <a href="../triagem/triagem.html"><span class="ic">🩺</span>Triagem</a>
-    <a href="./painel.html" class="active"><span class="ic">📺</span>Painel de Atendimento</a>
-    <a href="../medico/medico.html"><span class="ic">👨‍⚕️</span>Atendimento Médico</a>
+  <nav aria-label="Menu principal">
+    <a href="../recepcao/recepcao.html">Recepção</a>
+    <a href="../triagem/triagem.html">Triagem</a>
+    <a href="./painel.html" class="active">Painel de Atendimento</a>
+    <a href="../medico/medico.html">Atendimento Médico</a>
   </nav>
   <div class="relogio" id="relogio"></div>
 </aside>
 
 <main>
   <h2 class="titulo">Painel de atendimento</h2>
-  <p class="lead">Fila de espera para o médico, ordenada por gravidade (vermelho → azul) e, dentro de cada cor, por ordem de chegada.</p>
+  <p class="lead">Fila de espera para o médico, ordenada por gravidade (de Vermelho a Azul) e, dentro de cada cor, por ordem de chegada. Atualiza a cada 5 segundos.</p>
 
   <div class="card">
     <h2>Fila atual</h2>
@@ -35,7 +35,7 @@
 </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="../comum/comum.js"></script>
 <script>
@@ -60,12 +60,17 @@ function renderPainel(){
     const div = document.createElement('div');
     div.className = 'painel-item ' + a.triagem.classificacao;
     div.innerHTML = `
-      <div class="pi-pos">${idx+1}º</div>
+      <div class="pi-pos" aria-label="Posição">${idx+1}º</div>
+      <div class="pi-num">${escapeHtml(a.id)}</div>
       <div class="pi-info">
-        <div class="pi-nome">${escapeHtml(a.nome)} <span>— ${escapeHtml(a.id)}</span></div>
-        <div class="pi-sub">Nascimento: ${escapeHtml(formatarData(a.nascimento))} (${escapeHtml(calcularIdade(a.nascimento))}) · Queixa: ${escapeHtml(a.triagem.queixas)}</div>
+        <div class="pi-nome">${escapeHtml(a.nome)}</div>
+        <div class="pi-sub">Nascimento: <strong>${escapeHtml(formatarData(a.nascimento))}</strong> (${escapeHtml(calcularIdade(a.nascimento))})</div>
+        <div class="pi-sub">Queixa: <strong>${escapeHtml(a.triagem.queixas)}</strong></div>
       </div>
-      <span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span>
+      <div>
+        <span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span>
+        <span class="pi-status">${escapeHtml(STATUS_LABEL[a.status])}</span>
+      </div>
     `;
     cont.appendChild(div);
   });
