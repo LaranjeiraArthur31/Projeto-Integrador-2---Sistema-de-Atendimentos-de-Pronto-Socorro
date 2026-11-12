@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "setup": "node scripts/setup.js",
     "start": "node services/server.js",
     "dev": "node --watch services/server.js",
     "test": "node --test"

@@ -1,3 +1,9 @@
+SET client_encoding = 'UTF8';
+
+-- Dados de demonstração (idempotente: pode ser executado mais de uma vez).
+-- As chaves estrangeiras são buscadas por CPF, e-mail e número do atendimento,
+-- sem depender dos IDs gerados.
+
 -- PACIENTES
 
 INSERT INTO paciente (
@@ -36,7 +42,8 @@ VALUES
     '(19)99999-2222',
     'Rua B, 200',
     'ana@email.com'
-);
+)
+ON CONFLICT DO NOTHING;
 
 -- PROFISSIONAIS
 
@@ -76,7 +83,8 @@ VALUES
     'Clínico Geral',
     'medico@hospital.com',
     '123456'
-);
+)
+ON CONFLICT DO NOTHING;
 
 -- ATENDIMENTO
 
@@ -86,13 +94,11 @@ INSERT INTO atendimento (
     id_recepcionista,
     status
 )
-VALUES
-(
-    'AT0001',
-    1,
-    1,
-    'AGUARDANDO_MEDICO'
-);
+SELECT 'AT0001', p.id_paciente, r.id_profissional, 'AGUARDANDO_MEDICO'
+FROM paciente p, profissional r
+WHERE p.cpf = '123.456.789-00'
+  AND r.email = 'recepcao@hospital.com'
+ON CONFLICT DO NOTHING;
 
 -- TRIAGEM
 
@@ -105,16 +111,12 @@ INSERT INTO triagem (
     queixa_principal,
     classificacao_manchester
 )
-VALUES
-(
-    1,
-    2,
-    '12x8',
-    36.8,
-    78,
-    'Dor de cabeça persistente',
-    'VERDE'
-);
+SELECT a.id_atendimento, e.id_profissional, '12x8', 36.8, 78,
+       'Dor de cabeça persistente', 'VERDE'
+FROM atendimento a, profissional e
+WHERE a.numero_atendimento = 'AT0001'
+  AND e.email = 'enfermagem@hospital.com'
+ON CONFLICT DO NOTHING;
 
 -- ATENDIMENTO MÉDICO
 
@@ -125,11 +127,11 @@ INSERT INTO atendimento_medico (
     medicacoes_prescritas,
     observacoes
 )
-VALUES
-(
-    1,
-    3,
-    'Cefaleia tensional',
-    'Dipirona 500mg de 6 em 6 horas',
-    'Paciente orientado a retornar caso os sintomas persistam'
-);
+SELECT a.id_atendimento, m.id_profissional,
+       'Cefaleia tensional',
+       'Dipirona 500mg de 6 em 6 horas',
+       'Paciente orientado a retornar caso os sintomas persistam'
+FROM atendimento a, profissional m
+WHERE a.numero_atendimento = 'AT0001'
+  AND m.email = 'medico@hospital.com'
+ON CONFLICT DO NOTHING;

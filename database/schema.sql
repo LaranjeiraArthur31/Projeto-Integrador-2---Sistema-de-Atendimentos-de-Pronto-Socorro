@@ -1,7 +1,9 @@
--- Esquema PostgreSQL
+SET client_encoding = 'UTF8';
+
+-- Esquema PostgreSQL (idempotente: pode ser executado mais de uma vez)
 
 -- 1. Tabela de Pacientes
-CREATE TABLE paciente (
+CREATE TABLE IF NOT EXISTS paciente (
     id_paciente INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     nome_completo VARCHAR(100) NOT NULL,
     cpf VARCHAR(14) NOT NULL UNIQUE,
@@ -16,7 +18,7 @@ CREATE TABLE paciente (
 );
 
 -- 2. Tabela de Profissionais (Recepção, Enfermagem e Médicos)
-CREATE TABLE profissional (
+CREATE TABLE IF NOT EXISTS profissional (
     id_profissional INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     nome_completo VARCHAR(100) NOT NULL,
     cpf VARCHAR(14) NOT NULL UNIQUE,
@@ -29,7 +31,7 @@ CREATE TABLE profissional (
 );
 
 -- 3. Tabela de Atendimentos
-CREATE TABLE atendimento (
+CREATE TABLE IF NOT EXISTS atendimento (
     id_atendimento INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     numero_atendimento VARCHAR(20) NOT NULL UNIQUE, -- Ex: AT0001
     id_paciente INT NOT NULL,
@@ -43,7 +45,7 @@ CREATE TABLE atendimento (
 );
 
 -- 4. Tabela de Triagem (Protocolo de Manchester)
-CREATE TABLE triagem (
+CREATE TABLE IF NOT EXISTS triagem (
     id_triagem INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_atendimento INT NOT NULL UNIQUE,
     id_enfermeiro INT NOT NULL,
@@ -60,7 +62,7 @@ CREATE TABLE triagem (
 );
 
 -- 5. Tabela de Atendimento Médico (Consulta Final)
-CREATE TABLE atendimento_medico (
+CREATE TABLE IF NOT EXISTS atendimento_medico (
     id_atendimento_medico INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_atendimento INT NOT NULL UNIQUE,
     id_medico INT NOT NULL,
