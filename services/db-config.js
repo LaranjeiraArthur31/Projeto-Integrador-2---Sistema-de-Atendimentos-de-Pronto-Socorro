@@ -1,7 +1,7 @@
 // Configuração do PostgreSQL e mensagens de erro amigáveis (usado por server.js e scripts/setup.js).
 
 export const TABELAS = ['paciente', 'profissional', 'atendimento', 'triagem', 'atendimento_medico'];
-const SENHA_EXEMPLO = 'defina_sua_senha_local';
+const SENHA_EXEMPLO = 'defina_sua_senha';
 
 export function lerConfigBanco(env = process.env) {
   return {
