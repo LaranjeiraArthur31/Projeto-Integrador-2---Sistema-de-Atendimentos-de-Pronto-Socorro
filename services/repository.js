@@ -95,7 +95,21 @@ function parseTemperatura(value) {
   if (!/^\d{1,2}(\.\d{1,2})?$/.test(text)) {
     throw invalid('Temperatura inválida: informe um número em °C, por exemplo 36,5');
   }
-  return Number(text);
+  const temperatura = Number(text);
+  if (temperatura < 25 || temperatura > 45) {
+    throw invalid('Temperatura fora da faixa aceita: informe um valor entre 25 e 45 °C');
+  }
+  return temperatura;
+}
+
+// Frequência cardíaca: número inteiro (ou texto só com dígitos) entre 20 e 250 bpm.
+function parseBatimentos(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const texto = ['string', 'number'].includes(typeof value) ? String(value).trim() : '';
+  if (!/^\d{1,3}$/.test(texto) || Number(texto) < 20 || Number(texto) > 250) {
+    throw invalid('Batimentos cardíacos inválidos: informe um número inteiro entre 20 e 250 bpm');
+  }
+  return Number(texto);
 }
 
 // Pressão arterial no formato "120/80", com "mmHg" opcional ("120/80 mmHg").
@@ -409,7 +423,7 @@ export class PostgresRepository {
           id_enfermeiro: idEnfermeiro,
           pressao_arterial: parsePressao(triage.pa),
           temperatura: parseTemperatura(triage.temp),
-          frequencia_cardiaca: triage.bpm === '' ? null : triage.bpm ?? null,
+          frequencia_cardiaca: parseBatimentos(triage.bpm),
           queixa_principal: triage.queixas,
           classificacao_manchester: typeof triage.classificacao === 'string'
             ? triage.classificacao.toUpperCase() : triage.classificacao

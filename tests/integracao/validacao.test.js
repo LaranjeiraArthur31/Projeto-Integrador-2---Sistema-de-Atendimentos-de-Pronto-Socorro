@@ -259,27 +259,43 @@ test('triagem: temperatura em texto, negativa ou com 3 casas é recusada', opcoe
   }
 });
 
-test('triagem: temperatura absurda (80 °C, 5 °C) é recusada', proposta(
-  'hoje qualquer valor de 0 a 99,99 é aceito; sugestão de faixa: 25 a 45 °C'
-), async (t) => {
+test('triagem: temperatura fora de 25 a 45 °C é recusada com mensagem clara; os limites são aceitos', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);
-  esperarStatus(await triagem(amb, { temp: '80' }), 400, 'temperatura 80');
-  esperarStatus(await triagem(amb, { temp: '5' }), 400, 'temperatura 5');
+  for (const temp of ['80', '5', '24,99', '45.01', 46, 0, '99,99']) {
+    const resposta = esperarStatus(await triagem(amb, { temp }), 400, `temperatura ${JSON.stringify(temp)}`);
+    assert.equal(resposta.erro, 'Temperatura fora da faixa aceita: informe um valor entre 25 e 45 °C');
+  }
+  const recepcao = await amb.recepcao();
+  const enfermagem = await amb.enfermagem();
+  for (const [temp, esperado] of [['25', '25.00'], ['45,0', '45.00'], [34.2, '34.20']]) {
+    const { id } = await criarAtendimento(recepcao);
+    const resposta = await enfermagem.put(`/atendimentos/${id}`, { status: 'aguardando-medico', triagem: dadosTriagem({ temp }) });
+    esperarStatus(resposta, 200, `temperatura ${JSON.stringify(temp)}`);
+    assert.equal(resposta.dados.triagem.temp, esperado);
+  }
 });
 
 test('triagem: frequência cardíaca que não é número inteiro é recusada', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);
-  for (const bpm of ['abc', '80.5', 3_000_000_000, [80], { v: 80 }]) {
+  for (const bpm of ['abc', '80.5', 80.5, '8O', 3_000_000_000, [80], { v: 80 }]) {
     esperarStatus(await triagem(amb, { bpm }), 400, `bpm ${JSON.stringify(bpm)}`);
   }
 });
 
-test('triagem: frequência cardíaca fora da faixa fisiológica é recusada', proposta(
-  'hoje 0, -5 e 999 bpm são aceitos; sugestão de faixa: 20 a 250 bpm'
-), async (t) => {
+test('triagem: frequência cardíaca fora de 20 a 250 bpm é recusada com mensagem clara; os limites são aceitos', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);
-  esperarStatus(await triagem(amb, { bpm: -5 }), 400, 'bpm -5');
-  esperarStatus(await triagem(amb, { bpm: 999 }), 400, 'bpm 999');
+  for (const bpm of [-5, 0, 19, 251, 999, '-80']) {
+    const resposta = esperarStatus(await triagem(amb, { bpm }), 400, `bpm ${JSON.stringify(bpm)}`);
+    assert.equal(resposta.erro, 'Batimentos cardíacos inválidos: informe um número inteiro entre 20 e 250 bpm');
+  }
+  const recepcao = await amb.recepcao();
+  const enfermagem = await amb.enfermagem();
+  for (const [bpm, esperado] of [[20, 20], ['250', 250], [' 72 ', 72], ['', null]]) {
+    const { id } = await criarAtendimento(recepcao);
+    const resposta = await enfermagem.put(`/atendimentos/${id}`, { status: 'aguardando-medico', triagem: dadosTriagem({ bpm }) });
+    esperarStatus(resposta, 200, `bpm ${JSON.stringify(bpm)}`);
+    assert.equal(resposta.dados.triagem.bpm, esperado);
+  }
 });
 
 test('triagem: queixa vazia ou só com espaços é recusada', opcoes, async (t) => {
