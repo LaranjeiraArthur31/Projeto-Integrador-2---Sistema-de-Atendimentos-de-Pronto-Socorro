@@ -1,8 +1,10 @@
 SET client_encoding = 'UTF8';
 
 -- Dados de demonstração (idempotente: pode ser executado mais de uma vez).
--- As chaves estrangeiras são buscadas por CPF, e-mail e número do atendimento,
--- sem depender dos IDs gerados.
+-- Cada linha só é inserida se ainda não existir (WHERE NOT EXISTS). Assim, rodar
+-- de novo não insere nada e não avança as sequências de ID. No final, as
+-- sequências são ajustadas para o próximo número livre, e o primeiro atendimento
+-- criado pelo sistema recebe o número seguinte (AT0007), sem pular.
 --
 -- Situação após o setup:
 --   AT0001  João da Silva            triado (Verde)    aguardando médico
@@ -17,9 +19,9 @@ SET client_encoding = 'UTF8';
 INSERT INTO paciente (
     nome_completo, cpf, rg, nome_mae, nome_pai, data_nascimento, sexo, telefone, endereco, email
 )
-VALUES
+SELECT v.* FROM (VALUES
 ('João da Silva', '123.456.789-00', '12345678', 'Maria da Silva', 'José da Silva',
- '1990-05-15', 'M', '(19)99999-1111', 'Rua A, 100', 'joao@email.com'),
+ '1990-05-15'::date, 'M', '(19)99999-1111', 'Rua A, 100', 'joao@email.com'),
 ('Ana Souza', '987.654.321-00', '87654321', 'Paula Souza', 'Carlos Souza',
  '1985-10-20', 'F', '(19)99999-2222', 'Rua B, 200', 'ana@email.com'),
 ('Sebastião Simões Neto', '789.123.456-00', '78912345', 'Conceição Simões', 'Sebastião Simões Filho',
@@ -30,23 +32,28 @@ VALUES
  '2001-07-30', 'F', '(19)99999-5555', 'Rua Conceição, 301', 'lucia@email.com'),
 ('Márcia Conceição Ribeiro', '654.321.987-00', '65432198', 'Inês Ribeiro', NULL,
  '1972-12-03', 'F', '(19)99999-6666', 'Rua José Paulino, 77', NULL)
-ON CONFLICT DO NOTHING;
+) AS v(nome_completo, cpf, rg, nome_mae, nome_pai, data_nascimento, sexo, telefone, endereco, email)
+WHERE NOT EXISTS (SELECT 1 FROM paciente p WHERE p.cpf = v.cpf);
 
 -- PROFISSIONAIS
 
 INSERT INTO profissional (
     nome_completo, cpf, cargo, registro_conselho, especialidade, email, senha
 )
-VALUES
+SELECT v.* FROM (VALUES
 ('Lucas Almeida', '111.111.111-11', 'Recepcionista', NULL, NULL, 'recepcao@hospital.com', '123456'),
 ('Fernanda Costa', '222.222.222-22', 'Enfermeiro', 'COREN12345', NULL, 'enfermagem@hospital.com', '123456'),
 ('Ricardo Oliveira', '333.333.333-33', 'Medico', 'CRM54321', 'Clínico Geral', 'medico@hospital.com', '123456')
-ON CONFLICT DO NOTHING;
+) AS v(nome_completo, cpf, cargo, registro_conselho, especialidade, email, senha)
+WHERE NOT EXISTS (SELECT 1 FROM profissional x WHERE x.cpf = v.cpf OR x.email = v.email);
 
 -- ATENDIMENTOS (horário de chegada relativo ao momento do setup)
+-- O sistema gera o número como "AT" + id; por isso o id é gravado explicitamente
+-- (AT0001 = id 1), sem usar a sequência.
 
-INSERT INTO atendimento (numero_atendimento, id_paciente, id_recepcionista, data_hora_chegada, status)
-SELECT v.numero, p.id_paciente, r.id_profissional,
+INSERT INTO atendimento (id_atendimento, numero_atendimento, id_paciente, id_recepcionista, data_hora_chegada, status)
+OVERRIDING SYSTEM VALUE
+SELECT substring(v.numero FROM 3)::int, v.numero, p.id_paciente, r.id_profissional,
        CURRENT_TIMESTAMP - v.minutos * INTERVAL '1 minute', v.status
 FROM (VALUES
     ('AT0001', '123.456.789-00', 110, 'AGUARDANDO_MEDICO'),
@@ -58,8 +65,11 @@ FROM (VALUES
 ) AS v(numero, cpf, minutos, status)
 JOIN paciente p ON p.cpf = v.cpf
 JOIN profissional r ON r.email = 'recepcao@hospital.com'
-ORDER BY v.numero
-ON CONFLICT DO NOTHING;
+WHERE NOT EXISTS (
+    SELECT 1 FROM atendimento a
+    WHERE a.numero_atendimento = v.numero
+       OR a.id_atendimento = substring(v.numero FROM 3)::int
+);
 
 -- TRIAGENS (AT0006 ainda aguarda triagem)
 
@@ -78,7 +88,7 @@ FROM (VALUES
 ) AS v(numero, pa, temp, bpm, queixa, cor)
 JOIN atendimento a ON a.numero_atendimento = v.numero
 JOIN profissional e ON e.email = 'enfermagem@hospital.com'
-ON CONFLICT DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM triagem t WHERE t.id_atendimento = a.id_atendimento);
 
 -- ATENDIMENTO MÉDICO (somente o atendimento finalizado)
 
@@ -103,4 +113,17 @@ SELECT a.id_atendimento, m.id_profissional,
 FROM atendimento a
 JOIN profissional m ON m.email = 'medico@hospital.com'
 WHERE a.numero_atendimento = 'AT0002'
-ON CONFLICT DO NOTHING;
+  AND NOT EXISTS (SELECT 1 FROM atendimento_medico x WHERE x.id_atendimento = a.id_atendimento);
+
+-- AJUSTE DAS SEQUÊNCIAS: o próximo ID de cada tabela passa a ser (maior ID + 1).
+
+SELECT setval(pg_get_serial_sequence('paciente', 'id_paciente'),
+              COALESCE((SELECT MAX(id_paciente) FROM paciente), 0) + 1, false);
+SELECT setval(pg_get_serial_sequence('profissional', 'id_profissional'),
+              COALESCE((SELECT MAX(id_profissional) FROM profissional), 0) + 1, false);
+SELECT setval(pg_get_serial_sequence('atendimento', 'id_atendimento'),
+              COALESCE((SELECT MAX(id_atendimento) FROM atendimento), 0) + 1, false);
+SELECT setval(pg_get_serial_sequence('triagem', 'id_triagem'),
+              COALESCE((SELECT MAX(id_triagem) FROM triagem), 0) + 1, false);
+SELECT setval(pg_get_serial_sequence('atendimento_medico', 'id_atendimento_medico'),
+              COALESCE((SELECT MAX(id_atendimento_medico) FROM atendimento_medico), 0) + 1, false);
