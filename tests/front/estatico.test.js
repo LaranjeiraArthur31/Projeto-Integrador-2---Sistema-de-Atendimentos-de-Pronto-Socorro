@@ -271,3 +271,11 @@ test('todo id usado pelo script existe na página', () => {
   assert.ok(!/id\s*=\s*["']cadastro-form["']/.test(lerWeb('auth/login.html')), 'o login não pode usar o id "cadastro-form"');
   assert.deepEqual(problemas, [], problemas.join('\n'));
 });
+
+test('tela do médico: "Medicações prescritas" é obrigatório para dar alta', () => {
+  const html = lerWeb('medico/medico.html');
+  const campo = html.match(/<textarea[^>]*id\s*=\s*["']md-medicacoes["'][^>]*>/);
+  assert.ok(campo, 'o campo md-medicacoes não foi encontrado na tela do médico');
+  assert.match(campo[0], /\srequired\b/, 'o campo de medicações precisa do atributo required');
+  assert.match(html, /<label[^>]*for\s*=\s*["']md-medicacoes["'][^>]*>[^<]*\*/, 'o rótulo das medicações deveria indicar campo obrigatório (*)');
+});

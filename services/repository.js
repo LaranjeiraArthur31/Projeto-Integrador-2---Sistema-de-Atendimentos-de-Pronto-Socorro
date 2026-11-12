@@ -375,6 +375,12 @@ export class PostgresRepository {
         throw invalid('Novos atendimentos devem aguardar triagem');
       }
       const status = existing ? toDatabaseStatus(data.status) : 'AGUARDANDO_TRIAGEM';
+      // Na alta, as medicações são obrigatórias (como na tela); sem medicação, "Nenhuma".
+      const medicacoes = (dados.medico ?? existing?.medico)?.medicacoes;
+      if (status === 'FINALIZADO' &&
+          (typeof medicacoes !== 'string' || medicacoes.trim() === '')) {
+        throw invalid('Informe as medicações prescritas para dar alta (se não houver, escreva "Nenhuma")');
+      }
       const patient = {
         nome_completo: data.nome, cpf: data.cpf, rg: data.rg, nome_mae: data.mae,
         nome_pai: data.pai ?? null, data_nascimento: data.nascimento, sexo: data.sexo,

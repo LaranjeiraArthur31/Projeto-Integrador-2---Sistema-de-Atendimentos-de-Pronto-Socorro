@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  SEM_BANCO, ambienteDoTeste, contar, criarAtendimento, dadosMedico, dadosPaciente, dadosTriagem, esperarStatus
+  SEM_BANCO, ambienteDoTeste, contar, criarAtendimento, dadosMedico, dadosPaciente, dadosTriagem, esperarStatus, statusNoBanco
 } from '../helpers/ambiente.js';
 
 const opcoes = { skip: SEM_BANCO };
@@ -318,11 +318,25 @@ test('médico: diagnóstico e observações são opcionais', opcoes, async (t) =
   assert.equal(resposta.dados.medico.diagnostico, null);
 });
 
-test('médico: medicações vazias são recusadas', proposta(
-  'a tela exige "Medicações prescritas", mas a API aceita vazio; sugestão: exigir na API também (ou tornar opcional na tela)'
-), async (t) => {
+test('médico: alta sem medicações é recusada com mensagem clara; "Nenhuma" é aceito', opcoes, async (t) => {
   const amb = await ambienteDoTeste(t);
-  esperarStatus(await consulta(amb, { medicacoes: '' }), 400, 'medicações vazias');
+  const statusAntes = await statusNoBanco(amb, 'AT0001');
+  for (const medicacoes of ['', '   ', null, undefined, 0]) {
+    const resposta = esperarStatus(await consulta(amb, { medicacoes }), 400, `medicações ${JSON.stringify(medicacoes)}`);
+    assert.equal(resposta.erro, 'Informe as medicações prescritas para dar alta (se não houver, escreva "Nenhuma")');
+  }
+  assert.equal(await statusNoBanco(amb, 'AT0001'), statusAntes, 'a alta recusada não pode mudar o status');
+  const resposta = esperarStatus(await consulta(amb, { medicacoes: 'Nenhuma' }), 200, 'medicações "Nenhuma"');
+  assert.equal(resposta.dados.status, 'confirmado');
+  assert.equal(resposta.dados.medico.medicacoes, 'Nenhuma');
+});
+
+test('médico: durante o atendimento (antes da alta) as medicações podem ficar em branco', opcoes, async (t) => {
+  const amb = await ambienteDoTeste(t);
+  const medico = await amb.medico();
+  const resposta = await medico.put('/atendimentos/AT0001', { status: 'em-atendimento', medico: dadosMedico({ medicacoes: '' }) });
+  esperarStatus(resposta, 200, 'em atendimento sem medicações');
+  esperarStatus(await medico.put('/atendimentos/AT0001', { status: 'confirmado', medico: dadosMedico({ medicacoes: '' }) }), 400, 'alta logo depois, ainda sem medicações');
 });
 
 test('médico: textos longos (10 mil caracteres) são gravados inteiros', opcoes, async (t) => {
