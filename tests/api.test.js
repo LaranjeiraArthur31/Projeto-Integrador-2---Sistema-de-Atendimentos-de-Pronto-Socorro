@@ -199,3 +199,50 @@ test('API traduz erros PostgreSQL e expõe os recursos do novo esquema', async (
     }
   });
 });
+
+test('cancelamento é bloqueado para atendimentos finalizados e 404 para inexistentes', async () => {
+  const statuses = { AT0001: 'FINALIZADO', AT0002: 'AGUARDANDO_MEDICO' };
+  const repository = new PostgresRepository({
+    query: async (sql, [codigo]) => {
+      if (sql.startsWith('UPDATE')) {
+        const ok = codigo in statuses && statuses[codigo] !== 'FINALIZADO';
+        return { rowCount: ok ? 1 : 0 };
+      }
+      return { rows: codigo in statuses ? [{ status: statuses[codigo] }] : [] };
+    }
+  });
+  assert.equal(await repository.cancelarAtendimento('AT0002'), true);
+  assert.equal(await repository.cancelarAtendimento('AT9999'), false);
+  await assert.rejects(repository.cancelarAtendimento('AT0001'), { code: 'INVALID_DATA' });
+});
+
+test('triagem aceita temperatura com vírgula e rejeita valor inválido com mensagem clara', async () => {
+  let triageValues;
+  const existing = {
+    id_atendimento: 5, numero_atendimento: 'AT0005', nome_completo: 'P', cpf: '1', rg: '1',
+    nome_mae: 'M', data_nascimento: '2000-01-01', sexo: 'F', status: 'AGUARDANDO_TRIAGEM'
+  };
+  const client = {
+    async query(sql, values) {
+      if (sql.includes('FROM atendimento a')) return { rows: [existing] };
+      if (sql.includes('INSERT INTO paciente')) return { rows: [{ id_paciente: 1 }] };
+      if (sql.includes('SELECT id_profissional')) return { rows: [{ id_profissional: 2 }] };
+      if (sql.includes('INSERT INTO triagem')) triageValues = values;
+      return { rows: [{ id_atendimento: 5 }], rowCount: 1 };
+    },
+    release() {}
+  };
+  const repository = new PostgresRepository({ connect: async () => client });
+  const actor = { cargo: 'Enfermeiro' };
+  const triagem = { pa: '120/80 mmHg', bpm: 80, queixas: 'Dor', classificacao: 'verde' };
+  await repository.salvarAtendimento(
+    { id: 'AT0005', status: 'aguardando-medico', triagem: { ...triagem, temp: '36,5' } }, actor
+  );
+  assert.equal(triageValues[3], 36.5);
+  await assert.rejects(
+    repository.salvarAtendimento(
+      { id: 'AT0005', status: 'aguardando-medico', triagem: { ...triagem, temp: '36,5°' } }, actor
+    ),
+    { code: 'INVALID_DATA', message: /Temperatura inválida/ }
+  );
+});

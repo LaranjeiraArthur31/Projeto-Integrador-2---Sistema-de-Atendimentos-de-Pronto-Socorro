@@ -109,12 +109,24 @@ test('PostgreSQL: cadastro, login, permissões e fluxo completo por cargo', {
       status: 'aguardando-medico', triagem: { queixas: 'Dor', classificacao: 'invalida' }
     }, 400);
     assert.equal((await request(path)).status, 'aguardando-triagem');
+    const tempInvalida = await fetch(`${base}${path}`, {
+      method: 'PUT', headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'aguardando-medico', triagem: { temp: 'abc', queixas: 'Dor', classificacao: 'amarelo' } })
+    });
+    assert.equal(tempInvalida.status, 400);
+    assert.match((await tempInvalida.json()).erro, /Temperatura inválida/);
     await request(path, 'PUT', {
       status: 'aguardando-medico',
-      triagem: { pa: '12x8', temp: 36.5, bpm: 80, queixas: 'Dor', classificacao: 'amarelo', id_profissional: 3 }
+      triagem: { pa: '120/80 mmHg', temp: '36,5', bpm: 80, queixas: 'Dor', classificacao: 'amarelo', id_profissional: 3 }
     });
-    assert.equal((await request(path)).triagem.id_profissional, 2);
+    const triado = await request(path);
+    assert.equal(triado.triagem.id_profissional, 2);
+    assert.equal(triado.triagem.pa, '120/80 mmHg');
+    assert.equal(Number(triado.triagem.temp), 36.5);
     await request(path, 'PUT', { status: 'confirmado', medico: {} }, 403);
+    // Recepção ainda pode alterar enquanto o médico não confirmou.
+    await login('recepcao@hospital.com');
+    assert.equal((await request(path, 'PUT', { telefone: '6666' })).status, 'aguardando-medico');
     await login('medico@hospital.com');
     await request(path, 'PUT', {
       status: 'confirmado',
@@ -127,6 +139,10 @@ test('PostgreSQL: cadastro, login, permissões e fluxo completo por cargo', {
       [created.dbId])).rows[0].data_hora_fim);
     await request(path, 'PUT', { status: 'em-atendimento', medico: {} }, 400);
     await login('recepcao@hospital.com');
+    await request(path, 'PUT', { telefone: '7777' }, 400);
+    await request(path, 'DELETE', null, 400);
+    assert.equal((await request(path)).status, 'confirmado');
+    await request('/atendimentos/AT9999', 'DELETE', null, 404);
     const cancelPath = `/atendimentos/${concurrent[0].id}`;
     await request(cancelPath, 'DELETE', null, 204);
     assert.equal((await request(cancelPath)).status, 'cancelado');

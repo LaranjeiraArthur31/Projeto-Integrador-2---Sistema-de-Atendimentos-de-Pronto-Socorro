@@ -32,7 +32,19 @@ const isMainModule = process.argv[1]
   : false;
 
 if (isMainModule) {
-  app.listen(PORT, HOST, () => {
+  // No Express 5 o callback do listen recebe o erro (ex.: porta ocupada).
+  app.listen(PORT, HOST, (error) => {
+    if (error) {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`ERRO: a porta ${PORT} já está em uso por outro programa.`);
+        console.error('Altere PORT no arquivo .env (por exemplo, PORT=3001) e rode "npm start" de novo.');
+      } else if (error.code === 'EACCES') {
+        console.error(`ERRO: sem permissão para usar a porta ${PORT}. Altere PORT no arquivo .env (use um valor acima de 1024).`);
+      } else {
+        console.error(`ERRO ao iniciar o servidor em ${HOST}:${PORT}: ${error.message}`);
+      }
+      process.exit(1);
+    }
     console.log(`API e web disponíveis em http://${HOST}:${PORT}`);
   });
 }

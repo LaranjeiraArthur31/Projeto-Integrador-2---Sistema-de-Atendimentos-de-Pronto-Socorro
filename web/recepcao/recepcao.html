@@ -96,7 +96,7 @@
       </div>
 
       <div class="actions">
-        <button type="submit" class="btn btn-primary">Gerar Atendimento</button>
+        <button type="submit" class="btn btn-primary" id="rec-submit">Gerar Atendimento</button>
         <button type="reset" class="btn btn-secondary">Limpar</button>
       </div>
     </form>
@@ -140,11 +140,10 @@
    RECEPÇÃO — lógica específica desta página
    ============================================================ */
 const formRecepcao = document.getElementById('form-recepcao');
-formRecepcao.addEventListener('submit', async e=>{
-  e.preventDefault();
-  if (formRecepcao.dataset.editId) return;
-  const novo = {
-    id: proximoNumero(),
+const STATUS_EDITAVEIS = ['aguardando-triagem', 'aguardando-medico', 'em-atendimento'];
+
+function lerDadosPaciente(){
+  return {
     nome: document.getElementById('rec-nome').value.trim(),
     nascimento: document.getElementById('rec-nascimento').value,
     sexo: document.getElementById('rec-sexo').value,
@@ -153,7 +152,39 @@ formRecepcao.addEventListener('submit', async e=>{
     pai: document.getElementById('rec-pai').value.trim(),
     mae: document.getElementById('rec-mae').value.trim(),
     endereco: document.getElementById('rec-endereco').value.trim(),
-    telefone: document.getElementById('rec-telefone').value.trim(),
+    telefone: document.getElementById('rec-telefone').value.trim()
+  };
+}
+
+// "Limpar" (reset) sempre sai do modo de edição.
+function sairModoEdicao(){
+  delete formRecepcao.dataset.editId;
+  document.getElementById('rec-submit').textContent = 'Gerar Atendimento';
+}
+formRecepcao.addEventListener('reset', sairModoEdicao);
+
+formRecepcao.addEventListener('submit', async e=>{
+  e.preventDefault();
+  const editId = formRecepcao.dataset.editId;
+  if (editId) {
+    const a = atendimentos.find(x=>x.id===editId);
+    if (!a) { formRecepcao.reset(); return; }
+    const anterior = { ...a };
+    Object.assign(a, lerDadosPaciente());
+    try {
+      await salvarAtendimentos(atendimentos);
+    } catch (_error) {
+      Object.assign(a, anterior);
+      return;
+    }
+    formRecepcao.reset();
+    renderRecepcao();
+    toast('Atendimento ' + editId + ' atualizado!');
+    return;
+  }
+  const novo = {
+    id: proximoNumero(),
+    ...lerDadosPaciente(),
     id_profissional: Number(document.getElementById('rec-profissional').value),
     status: 'aguardando-triagem',
     criadoEm: new Date().toISOString(),
@@ -187,7 +218,7 @@ function renderRecepcao(){
 
   lista.forEach(a=>{
     const tr = document.createElement('tr');
-    const podeEditar = (a.status === 'aguardando-triagem');
+    const podeEditar = STATUS_EDITAVEIS.includes(a.status);
     tr.innerHTML = `
       <td><strong>${escapeHtml(a.id)}</strong></td>
       <td>${escapeHtml(a.nome)}</td>
@@ -230,32 +261,8 @@ function editarAtendimento(id){
   document.getElementById('rec-endereco').value = a.endereco;
   document.getElementById('rec-telefone').value = a.telefone;
   formRecepcao.dataset.editId = id;
-
-  atendimentos = atendimentos.filter(x=>x.id!==id);
-  formRecepcao.onsubmit = (e)=>{
-    e.preventDefault();
-    const editado = {
-      ...a,
-      nome: document.getElementById('rec-nome').value.trim(),
-      nascimento: document.getElementById('rec-nascimento').value,
-      sexo: document.getElementById('rec-sexo').value,
-      rg: document.getElementById('rec-rg').value.trim(),
-      cpf: document.getElementById('rec-cpf').value.trim(),
-      pai: document.getElementById('rec-pai').value.trim(),
-      mae: document.getElementById('rec-mae').value.trim(),
-      endereco: document.getElementById('rec-endereco').value.trim(),
-      telefone: document.getElementById('rec-telefone').value.trim(),
-    };
-    atendimentos.unshift(editado);
-    salvarAtendimentos(atendimentos).then(() => {
-      formRecepcao.reset();
-      formRecepcao.dataset.editId = '';
-      formRecepcao.onsubmit = null;
-      renderRecepcao();
-      toast('Atendimento ' + editado.id + ' atualizado!');
-    }).catch(() => {});
-  };
-  toast('Editando atendimento ' + id + '. Ajuste os dados e clique em "Gerar Atendimento".');
+  document.getElementById('rec-submit').textContent = 'Salvar Alterações';
+  toast('Editando atendimento ' + id + '. Ajuste os dados e clique em "Salvar Alterações" (ou "Limpar" para desistir).');
   window.scrollTo({top:0, behavior:'smooth'});
 }
 

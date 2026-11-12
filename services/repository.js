@@ -84,6 +84,16 @@ function toDatabaseStatus(status) {
   return mapped;
 }
 
+// Aceita "36.5", "36,5" ou número; respeita o limite da coluna DECIMAL(4,2).
+function parseTemperatura(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const text = String(value).trim().replace(',', '.');
+  if (!/^\d{1,2}(\.\d{1,2})?$/.test(text)) {
+    throw invalid('Temperatura inválida: informe um número em °C, por exemplo 36,5');
+  }
+  return Number(text);
+}
+
 function selectedFields(config) {
   return [config.id, ...config.fields.filter((field) => field !== 'senha')];
 }
@@ -335,7 +345,7 @@ export class PostgresRepository {
           id_atendimento: idAtendimento,
           id_enfermeiro: idEnfermeiro,
           pressao_arterial: triage.pa ?? null,
-          temperatura: triage.temp === '' ? null : triage.temp ?? null,
+          temperatura: parseTemperatura(triage.temp),
           frequencia_cardiaca: triage.bpm === '' ? null : triage.bpm ?? null,
           queixa_principal: triage.queixas,
           classificacao_manchester: typeof triage.classificacao === 'string'
@@ -408,9 +418,15 @@ export class PostgresRepository {
 
   async cancelarAtendimento(codigo) {
     const result = await this.pool.query(
-      "UPDATE atendimento SET status = 'CANCELADO' WHERE numero_atendimento = $1", [codigo]
+      "UPDATE atendimento SET status = 'CANCELADO' WHERE numero_atendimento = $1 AND status <> 'FINALIZADO'",
+      [codigo]
     );
-    return result.rowCount > 0;
+    if (result.rowCount > 0) return true;
+    const { rows } = await this.pool.query(
+      'SELECT status FROM atendimento WHERE numero_atendimento = $1', [codigo]
+    );
+    if (!rows.length) return false;
+    throw invalid('Atendimentos já confirmados pelo médico não podem ser cancelados');
   }
 }
 

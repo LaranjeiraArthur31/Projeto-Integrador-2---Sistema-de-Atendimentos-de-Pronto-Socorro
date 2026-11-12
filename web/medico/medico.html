@@ -53,12 +53,16 @@
           </select>
         </div>
         <div class="field full">
+          <label>Diagnóstico</label>
+          <textarea id="md-diagnostico" placeholder="Ex: Cefaleia tensional"></textarea>
+        </div>
+        <div class="field full" style="margin-top:12px;">
           <label>Medicações prescritas *</label>
           <textarea id="md-medicacoes" placeholder="Ex: Dipirona 1g EV, Soro fisiológico 500ml..." required></textarea>
         </div>
         <div class="field full" style="margin-top:12px;">
           <label>Observações da consulta</label>
-          <textarea id="md-observacoes" placeholder="Diagnóstico, orientações, encaminhamentos..."></textarea>
+          <textarea id="md-observacoes" placeholder="Orientações, encaminhamentos..."></textarea>
         </div>
         <div class="actions">
           <button type="submit" class="btn btn-success">Confirmar Atendimento</button>
@@ -138,6 +142,7 @@ document.getElementById('form-medico').addEventListener('submit', async e=>{
   if(!a) return;
 
   a.medico = {
+    diagnostico: document.getElementById('md-diagnostico').value.trim(),
     medicacoes: document.getElementById('md-medicacoes').value.trim(),
     observacoes: document.getElementById('md-observacoes').value.trim(),
     id_profissional: Number(document.getElementById('md-profissional').value)
