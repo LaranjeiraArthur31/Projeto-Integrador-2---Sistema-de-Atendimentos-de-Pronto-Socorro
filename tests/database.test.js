@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import pg from 'pg';
 import { createApp } from '../services/routes.js';
 import { PostgresRepository } from '../services/repository.js';
+import { garantirBancoTeste } from './helpers/ambiente.js';
 
 test('PostgreSQL: cadastro, login, permissões e fluxo completo por cargo', {
   skip: !process.env.API_TEST_DB_PORT
@@ -18,6 +19,7 @@ test('PostgreSQL: cadastro, login, permissões e fluxo completo por cargo', {
   const admin = new pg.Client(config);
   const pool = new pg.Pool({ ...config, options: `-c search_path=${schema}` });
   let server;
+  await garantirBancoTeste(); // o banco api_schema_test pode ainda não existir
   await admin.connect();
   try {
     await admin.query(`CREATE SCHEMA ${schema}`);

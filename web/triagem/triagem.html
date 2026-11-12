@@ -125,7 +125,7 @@ function renderTriagem(){
     tr.innerHTML = `
       <td><strong>${escapeHtml(a.id)}</strong></td>
       <td>${escapeHtml(a.nome)}</td>
-      <td>${new Date(a.criadoEm).toLocaleString('pt-BR')}</td>
+      <td>${escapeHtml(new Date(a.criadoEm).toLocaleString('pt-BR'))}</td>
       <td><button class="btn btn-primary btn-sm" onclick="abrirTriagem('${escapeHtml(a.id)}')">Iniciar Triagem</button></td>
     `;
     tbody.appendChild(tr);
@@ -140,7 +140,7 @@ function renderTriagem(){
     tr.innerHTML = `
       <td><strong>${escapeHtml(a.id)}</strong></td>
       <td>${escapeHtml(a.nome)}</td>
-      <td><span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span></td>
+      <td><span class="manchester ${escapeHtml(a.triagem.classificacao)}">${escapeHtml(MANCHESTER_LABEL[a.triagem.classificacao])}</span></td>
       <td>${escapeHtml(a.triagem.queixas)}</td>
     `;
     tbody2.appendChild(tr);

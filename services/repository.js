@@ -65,6 +65,10 @@ function validate(config, data, creating = false) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     throw invalid('Informe um objeto com os dados do registro');
   }
+  // Listas e objetos não são valores de coluna (o pg gravaria [ "Ana" ] como "{Ana}").
+  for (const [field, value] of Object.entries(data)) {
+    if (value !== null && typeof value === 'object') throw invalid(`Valor inválido para ${field}`);
+  }
   for (const field of config.required) {
     if ((creating || Object.hasOwn(data, field)) &&
         (data[field] === undefined || data[field] === null || String(data[field]).trim() === '')) {
@@ -87,7 +91,7 @@ function toDatabaseStatus(status) {
 // Aceita "36.5", "36,5" ou número; respeita o limite da coluna DECIMAL(4,2).
 function parseTemperatura(value) {
   if (value === undefined || value === null || value === '') return null;
-  const text = String(value).trim().replace(',', '.');
+  const text = ['string', 'number'].includes(typeof value) ? String(value).trim().replace(',', '.') : '';
   if (!/^\d{1,2}(\.\d{1,2})?$/.test(text)) {
     throw invalid('Temperatura inválida: informe um número em °C, por exemplo 36,5');
   }

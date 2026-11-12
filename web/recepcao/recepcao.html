@@ -234,7 +234,7 @@ function renderRecepcao(){
       <td>${escapeHtml(a.nome)}</td>
       <td>${a.nascimento ? escapeHtml(formatarData(a.nascimento)) : '-'}</td>
       <td>${escapeHtml(a.cpf || '-')}</td>
-      <td><span class="badge ${a.status}">${STATUS_LABEL[a.status]}</span></td>
+      <td><span class="badge ${escapeHtml(a.status)}">${escapeHtml(STATUS_LABEL[a.status])}</span></td>
       <td>
         <button class="btn btn-secondary btn-sm" onclick="verAtendimento('${escapeHtml(a.id)}')">Ver</button>
         ${podeEditar ? `<button class="btn btn-secondary btn-sm" onclick="editarAtendimento('${escapeHtml(a.id)}')">Editar</button>

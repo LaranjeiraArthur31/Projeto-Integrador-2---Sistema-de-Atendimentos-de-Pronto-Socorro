@@ -68,7 +68,7 @@ function renderPainel(){
         <div class="pi-sub">Queixa: <strong>${escapeHtml(a.triagem.queixas)}</strong></div>
       </div>
       <div>
-        <span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span>
+        <span class="manchester ${escapeHtml(a.triagem.classificacao)}">${escapeHtml(MANCHESTER_LABEL[a.triagem.classificacao])}</span>
         <span class="pi-status">${escapeHtml(STATUS_LABEL[a.status])}</span>
       </div>
     `;

@@ -126,7 +126,7 @@ document.getElementById('medico-select-atendimento').addEventListener('change', 
   document.getElementById('md-numero').textContent = a.id;
   document.getElementById('md-nome').textContent = a.nome;
   document.getElementById('md-nasc').textContent = formatarData(a.nascimento) + ' (' + calcularIdade(a.nascimento) + ')';
-  document.getElementById('md-classificacao').innerHTML = `<span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span>`;
+  document.getElementById('md-classificacao').innerHTML = `<span class="manchester ${escapeHtml(a.triagem.classificacao)}">${escapeHtml(MANCHESTER_LABEL[a.triagem.classificacao])}</span>`;
   document.getElementById('md-vitais').textContent = `${a.triagem.pa} · ${a.triagem.temp}°C · ${a.triagem.bpm} bpm`;
   document.getElementById('md-queixas').textContent = a.triagem.queixas;
 
@@ -169,7 +169,7 @@ function renderConfirmados(){
     tr.innerHTML = `
       <td><strong>${escapeHtml(a.id)}</strong></td>
       <td>${escapeHtml(a.nome)}</td>
-      <td><span class="manchester ${a.triagem.classificacao}">${MANCHESTER_LABEL[a.triagem.classificacao]}</span></td>
+      <td><span class="manchester ${escapeHtml(a.triagem.classificacao)}">${escapeHtml(MANCHESTER_LABEL[a.triagem.classificacao])}</span></td>
       <td>${escapeHtml(a.medico.medicacoes)}</td>
     `;
     tbody.appendChild(tr);

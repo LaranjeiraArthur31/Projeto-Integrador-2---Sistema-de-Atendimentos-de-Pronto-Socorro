@@ -166,8 +166,10 @@ export function createApp(repository) {
     const role = req.user.cargo;
     const allowed = role === 'Recepcionista' ? patientFields
       : role === 'Enfermeiro' ? ['triagem', 'status'] : ['medico', 'status'];
-    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body) ||
-        Object.keys(req.body).some((key) => !allowed.includes(key))) {
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+      throw Object.assign(new Error('Envie os dados do atendimento em JSON (um objeto)'), { code: 'INVALID_DATA' });
+    }
+    if (Object.keys(req.body).some((key) => !allowed.includes(key))) {
       throw Object.assign(new Error('Campos não permitidos para seu cargo'), { code: 'FORBIDDEN' });
     }
     const data = { ...req.body };
