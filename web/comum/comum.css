@@ -295,4 +295,5 @@ td .btn + .btn{ margin-left:4px; }
 @media (max-width:480px){
   .grid{ grid-template-columns: 1fr; }
   .sidebar .brand h1{ display:none; }
+  .conta{ flex-basis:100%; justify-content:space-between; grid-template-columns:1fr auto auto; border-top:1px solid var(--linha); }
 }
