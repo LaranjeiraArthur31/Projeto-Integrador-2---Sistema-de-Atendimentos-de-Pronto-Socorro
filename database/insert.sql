@@ -1,18 +1,7 @@
 SET client_encoding = 'UTF8';
 
--- Dados de demonstração (idempotente: pode ser executado mais de uma vez).
--- Cada linha só é inserida se ainda não existir (WHERE NOT EXISTS). Assim, rodar
--- de novo não insere nada e não avança as sequências de ID. No final, as
--- sequências são ajustadas para o próximo número livre, e o primeiro atendimento
--- criado pelo sistema recebe o número seguinte (AT0007), sem pular.
---
--- Situação após o setup:
---   AT0001  João da Silva            triado (Verde)    aguardando médico
---   AT0002  Sebastião Simões Neto    finalizado (alta médica)
---   AT0003  Antônio Gonçalves Pereira triado (Amarelo) aguardando médico
---   AT0004  Lúcia Helena Araújo      triado (Azul)     aguardando médico
---   AT0005  Ana Souza                triado (Vermelho) aguardando médico
---   AT0006  Márcia Conceição Ribeiro aguardando triagem
+-- insere dados de teste, se não existirem. Não insere duplicados (CPF, email, CRM/COREN)
+-- numero do atendimento segue a partir do ultimo ID de atendimento (AT0001 = id 1, AT0002 = id 2, etc.)
 
 -- PACIENTES
 
@@ -35,21 +24,47 @@ SELECT v.* FROM (VALUES
 ) AS v(nome_completo, cpf, rg, nome_mae, nome_pai, data_nascimento, sexo, telefone, endereco, email)
 WHERE NOT EXISTS (SELECT 1 FROM paciente p WHERE p.cpf = v.cpf);
 
--- PROFISSIONAIS
+-- PROFISSIONAIS 
 
 INSERT INTO profissional (
-    nome_completo, cpf, cargo, registro_conselho, especialidade, email, senha
+    nome_completo, cpf, cargo, email, senha
 )
 SELECT v.* FROM (VALUES
-('Lucas Almeida', '111.111.111-11', 'Recepcionista', NULL, NULL, 'recepcao@hospital.com', '123456'),
-('Fernanda Costa', '222.222.222-22', 'Enfermeiro', 'COREN12345', NULL, 'enfermagem@hospital.com', '123456'),
-('Ricardo Oliveira', '333.333.333-33', 'Medico', 'CRM54321', 'Clínico Geral', 'medico@hospital.com', '123456')
-) AS v(nome_completo, cpf, cargo, registro_conselho, especialidade, email, senha)
+('Lucas Almeida', '111.111.111-11', 'Recepcionista', 'recepcao@hospital.com', '123456'),
+('Fernanda Costa', '222.222.222-22', 'Enfermeiro', 'enfermagem@hospital.com', '123456'),
+('Ricardo Oliveira', '333.333.333-33', 'Medico', 'medico@hospital.com', '123456')
+) AS v(nome_completo, cpf, cargo, email, senha)
 WHERE NOT EXISTS (SELECT 1 FROM profissional x WHERE x.cpf = v.cpf OR x.email = v.email);
 
+-- ENFERMEIROS 
+
+INSERT INTO enfermeiro (id_profissional, coren, uf_coren)
+SELECT p.id_profissional, v.coren, v.uf
+FROM (VALUES
+    ('enfermagem@hospital.com', '12345', 'SP')
+) AS v(email, coren, uf)
+JOIN profissional p ON p.email = v.email
+WHERE NOT EXISTS (
+    SELECT 1 FROM enfermeiro e
+    WHERE e.id_profissional = p.id_profissional
+       OR (e.coren = v.coren AND e.uf_coren = v.uf)
+);
+
+-- MÉDICOS 
+
+INSERT INTO medico (id_profissional, crm, uf_crm, especialidade)
+SELECT p.id_profissional, v.crm, v.uf, v.especialidade
+FROM (VALUES
+    ('medico@hospital.com', '54321', 'SP', 'Clínico Geral')
+) AS v(email, crm, uf, especialidade)
+JOIN profissional p ON p.email = v.email
+WHERE NOT EXISTS (
+    SELECT 1 FROM medico m
+    WHERE m.id_profissional = p.id_profissional
+       OR (m.crm = v.crm AND m.uf_crm = v.uf)
+);
+
 -- ATENDIMENTOS (horário de chegada relativo ao momento do setup)
--- O sistema gera o número como "AT" + id; por isso o id é gravado explicitamente
--- (AT0001 = id 1), sem usar a sequência.
 
 INSERT INTO atendimento (id_atendimento, numero_atendimento, id_paciente, id_recepcionista, data_hora_chegada, status)
 OVERRIDING SYSTEM VALUE
@@ -72,6 +87,7 @@ WHERE NOT EXISTS (
 );
 
 -- TRIAGENS (AT0006 ainda aguarda triagem)
+-- id_enfermeiro referencia a tabela enfermeiro.
 
 INSERT INTO triagem (
     id_atendimento, id_enfermeiro, data_hora_triagem, pressao_arterial, temperatura,
@@ -80,42 +96,44 @@ INSERT INTO triagem (
 SELECT a.id_atendimento, e.id_profissional, a.data_hora_chegada + INTERVAL '8 minutes',
        v.pa, v.temp, v.bpm, v.queixa, v.cor
 FROM (VALUES
-    ('AT0001', '120/80 mmHg', 36.8,  78, 'Dor de cabeça persistente', 'VERDE'),
-    ('AT0002', '130/80 mmHg', 36.4,  88, 'Corte no dedo da mão esquerda com sangramento controlado', 'VERDE'),
-    ('AT0003', '110/70 mmHg', 39.1, 104, 'Febre alta e vômitos desde ontem', 'AMARELO'),
-    ('AT0004', '118/76 mmHg', 36.6,  80, 'Tosse leve há uma semana, sem febre', 'AZUL'),
-    ('AT0005', '90/60 mmHg',  36.9, 124, 'Dor no peito intensa, suor frio e falta de ar', 'VERMELHO')
+    ('AT0001', '120/80', 36.8,  78, 'Dor de cabeça persistente', 'VERDE'),
+    ('AT0002', '130/80', 36.4,  88, 'Corte no dedo da mão esquerda com sangramento controlado', 'VERDE'),
+    ('AT0003', '110/70', 39.1, 104, 'Febre alta e vômitos desde ontem', 'AMARELO'),
+    ('AT0004', '118/76', 36.6,  80, 'Tosse leve há uma semana, sem febre', 'AZUL'),
+    ('AT0005', '90/60',  36.9, 124, 'Dor no peito intensa, suor frio e falta de ar', 'VERMELHO')
 ) AS v(numero, pa, temp, bpm, queixa, cor)
 JOIN atendimento a ON a.numero_atendimento = v.numero
-JOIN profissional e ON e.email = 'enfermagem@hospital.com'
+JOIN profissional p ON p.email = 'enfermagem@hospital.com'
+JOIN enfermeiro e ON e.id_profissional = p.id_profissional
 WHERE NOT EXISTS (SELECT 1 FROM triagem t WHERE t.id_atendimento = a.id_atendimento);
 
 -- ATENDIMENTO MÉDICO (somente o atendimento finalizado)
 
--- Versões anteriores deste arquivo gravavam um registro do médico para o AT0001,
--- que está aguardando médico. Remove esse registro inconsistente, se existir.
 DELETE FROM atendimento_medico am
-USING atendimento a
-WHERE am.id_atendimento = a.id_atendimento
+USING triagem t, atendimento a
+WHERE am.id_triagem = t.id_triagem
+  AND t.id_atendimento = a.id_atendimento
   AND a.numero_atendimento = 'AT0001'
   AND a.status = 'AGUARDANDO_MEDICO';
 
 INSERT INTO atendimento_medico (
-    id_atendimento, id_medico, data_hora_inicio, data_hora_fim,
+    id_triagem, id_medico, data_hora_inicio, data_hora_fim,
     diagnostico, medicacoes_prescritas, observacoes
 )
-SELECT a.id_atendimento, m.id_profissional,
+SELECT t.id_triagem, m.id_profissional,
        a.data_hora_chegada + INTERVAL '40 minutes',
        a.data_hora_chegada + INTERVAL '65 minutes',
        'Ferimento cortante superficial no dedo indicador esquerdo',
        'Sutura com 3 pontos; paracetamol 750 mg de 6 em 6 horas, se dor',
        'Retirar os pontos em 7 dias na unidade básica de saúde.'
 FROM atendimento a
-JOIN profissional m ON m.email = 'medico@hospital.com'
+JOIN triagem t ON t.id_atendimento = a.id_atendimento
+JOIN profissional p ON p.email = 'medico@hospital.com'
+JOIN medico m ON m.id_profissional = p.id_profissional
 WHERE a.numero_atendimento = 'AT0002'
-  AND NOT EXISTS (SELECT 1 FROM atendimento_medico x WHERE x.id_atendimento = a.id_atendimento);
+  AND NOT EXISTS (SELECT 1 FROM atendimento_medico x WHERE x.id_triagem = t.id_triagem);
 
--- AJUSTE DAS SEQUÊNCIAS: o próximo ID de cada tabela passa a ser (maior ID + 1).
+-- AJUSTE DAS SEQUÊNCIAS: o próximo ID de cada tabela passa a ser (maior ID + 1)
 
 SELECT setval(pg_get_serial_sequence('paciente', 'id_paciente'),
               COALESCE((SELECT MAX(id_paciente) FROM paciente), 0) + 1, false);
