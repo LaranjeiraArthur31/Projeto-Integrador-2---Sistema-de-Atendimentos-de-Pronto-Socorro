@@ -33,6 +33,8 @@ npm start
 
 O `npm run setup` cria o banco, as tabelas e alguns dados de exemplo. Pode rodar de novo sem problema, ele não duplica nada.
 
+No banco, Médico e Enfermeiro precisam ter o registro no conselho (CRM ou COREN). O mesmo registro não pode se repetir dentro do mesmo cargo, e ele é gravado sem espaços e em maiúsculas. A Recepção não precisa de registro.
+
 Agora é só abrir <http://127.0.0.1:3000> no navegador.
 
 ## Usuários para teste
@@ -51,6 +53,7 @@ Também dá para criar uma conta nova pela tela de login.
 - **Senha do PostgreSQL recusada:** confira `DB_USER` e `DB_PASSWORD` no `.env`.
 - **Banco desligado ou em outra porta:** veja se o serviço do PostgreSQL está rodando e se o `DB_PORT` está certo.
 - **Banco ou tabelas não existem:** rode `npm run setup`.
+- **Setup avisa que há Médico/Enfermeiro sem registro no conselho:** preencha o CRM/COREN dos profissionais listados e rode `npm run setup` de novo.
 - **PowerShell diz que a execução de scripts está desabilitada:** use `npm.cmd` no lugar de `npm`, ou rode pelo Prompt de Comando.
 
 ## Testes

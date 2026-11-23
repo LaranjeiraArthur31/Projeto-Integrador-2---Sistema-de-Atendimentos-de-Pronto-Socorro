@@ -279,3 +279,13 @@ test('tela do médico: "Medicações prescritas" é obrigatório para dar alta',
   assert.match(campo[0], /\srequired\b/, 'o campo de medicações precisa do atributo required');
   assert.match(html, /<label[^>]*for\s*=\s*["']md-medicacoes["'][^>]*>[^<]*\*/, 'o rótulo das medicações deveria indicar campo obrigatório (*)');
 });
+
+test('cadastro: registro no conselho obrigatório só para Médico e Enfermeiro', () => {
+  const html = lerWeb('auth/cadastro.html');
+  assert.doesNotMatch(html, /se aplicável/, 'o texto do campo deveria dizer quando o registro é exigido');
+  assert.match(html, /CRM para médicos, COREN para\s+enfermeiros/);
+  const js = lerWeb('auth/auth.js');
+  assert.match(js, /cargo\.addEventListener\(\s*'change'/, 'auth.js deveria reagir à troca de cargo');
+  assert.match(js, /registro\.required\s*=\s*\['Medico', 'Enfermeiro'\]\.includes\(cargo\.value\)/,
+    'o campo deveria ficar required apenas para Médico e Enfermeiro');
+});

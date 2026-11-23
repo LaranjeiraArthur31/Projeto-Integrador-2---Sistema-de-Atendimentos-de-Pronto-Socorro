@@ -2,6 +2,17 @@ const form = document.querySelector('form');
 const message = document.getElementById('mensagem');
 const registering = form.id === 'cadastro-form';
 
+// Cadastro: o registro no conselho (CRM/COREN) é obrigatório só para Médico e Enfermeiro.
+const cargo = document.getElementById('cargo');
+const registro = document.getElementById('registro_conselho');
+function atualizarRegistro() {
+  if (registering) registro.required = ['Medico', 'Enfermeiro'].includes(cargo.value);
+}
+if (registering) {
+  cargo.addEventListener('change', atualizarRegistro);
+  atualizarRegistro();
+}
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(form));
@@ -24,6 +35,7 @@ form.addEventListener('submit', async (event) => {
     if (!response.ok) throw new Error(payload.erro || 'Não foi possível concluir a operação.');
     if (registering) {
       form.reset();
+      atualizarRegistro();
       message.className = 'auth-message success';
       message.textContent = 'Cadastro concluído. Use o link "Entrar" abaixo para acessar o sistema.';
     } else {

@@ -49,8 +49,9 @@ test('PostgreSQL: cadastro, login, permissões e fluxo completo por cargo', {
     await request('/auth/login', 'POST', { email: 'recepcao@hospital.com', senha: 'errada' }, 401);
     const registration = {
       nome_completo: 'Profissional Teste', cpf: '777.777.777-77', cargo: 'Medico',
-      email: 'TESTE@example.test', senha: 'senha-apenas-de-teste', ativo: false
+      registro_conselho: 'CRM77777', email: 'TESTE@example.test', senha: 'senha-apenas-de-teste', ativo: false
     };
+    await request('/auth/cadastro', 'POST', { ...registration, registro_conselho: '' }, 400);
     await request('/auth/cadastro', 'POST', { ...registration, senha: 'curta' }, 400);
     await request('/auth/cadastro', 'POST', { ...registration, cargo: 'Admin' }, 400);
     const registered = await request('/auth/cadastro', 'POST', registration, 201);

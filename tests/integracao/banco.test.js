@@ -39,14 +39,43 @@ test('CPF de paciente e de profissional é único no banco', opcoes, async (t) =
   const amb = await ambienteDoTeste(t);
   await esperarErroSql(amb.query(`INSERT INTO paciente (nome_completo, cpf, rg, nome_mae, data_nascimento, sexo)
     VALUES ('Outro', '123.456.789-00', '1', 'M', '2000-01-01', 'M')`), '23505', 'paciente com CPF repetido');
-  await esperarErroSql(amb.query(`INSERT INTO profissional (nome_completo, cpf, cargo, email, senha)
-    VALUES ('Outro', '111.111.111-11', 'Medico', 'outro@x.com', 'x')`), '23505', 'profissional com CPF repetido');
-  await esperarErroSql(amb.query(`INSERT INTO profissional (nome_completo, cpf, cargo, email, senha)
-    VALUES ('Outro', '999.111.111-11', 'Medico', 'medico@hospital.com', 'x')`), '23505', 'profissional com email repetido');
+  await esperarErroSql(amb.query(`INSERT INTO profissional (nome_completo, cpf, cargo, registro_conselho, email, senha)
+    VALUES ('Outro', '111.111.111-11', 'Medico', 'CRM00001', 'outro@x.com', 'x')`), '23505', 'profissional com CPF repetido');
+  await esperarErroSql(amb.query(`INSERT INTO profissional (nome_completo, cpf, cargo, registro_conselho, email, senha)
+    VALUES ('Outro', '999.111.111-11', 'Medico', 'CRM00002', 'medico@hospital.com', 'x')`), '23505', 'profissional com email repetido');
   await esperarErroSql(amb.query(`INSERT INTO atendimento (numero_atendimento, id_paciente, id_recepcionista)
     VALUES ('AT0001', 1, 1)`), '23505', 'número de atendimento repetido');
   await esperarErroSql(amb.query(`INSERT INTO triagem (id_atendimento, id_enfermeiro, queixa_principal, classificacao_manchester)
     VALUES (1, 2, 'x', 'VERDE')`), '23505', 'segunda triagem no mesmo atendimento');
+});
+
+test('registro no conselho: obrigatório para Médico/Enfermeiro e único por cargo no banco', opcoes, async (t) => {
+  const amb = await ambienteDoTeste(t);
+  const inserir = (cpf, cargo, registro, email) => amb.query(`INSERT INTO profissional
+    (nome_completo, cpf, cargo, registro_conselho, email, senha) VALUES ('Outro', $1, $2, $3, $4, 'x')`,
+  [cpf, cargo, registro, email]);
+  await esperarErroSql(inserir('900.000.000-01', 'Medico', null, 'a1@x.com'), '23514', 'Médico sem registro');
+  await esperarErroSql(inserir('900.000.000-02', 'Enfermeiro', '   ', 'a2@x.com'), '23514', 'Enfermeiro com registro só de espaços');
+  await esperarErroSql(amb.query('UPDATE profissional SET registro_conselho = NULL WHERE id_profissional = 3'), '23514', 'apagar o CRM do médico');
+  await esperarErroSql(amb.query("UPDATE profissional SET cargo = 'Medico' WHERE id_profissional = 1"), '23514', 'recepcionista sem registro virando médico');
+  await esperarErroSql(inserir('900.000.000-03', 'Medico', 'CRM54321', 'a3@x.com'), '23505', 'CRM repetido para Médico');
+  await inserir('900.000.000-04', 'Enfermeiro', 'CRM54321', 'a4@x.com'); // outro cargo: permitido
+  await inserir('900.000.000-05', 'Recepcionista', null, 'a5@x.com'); // NULLs não conflitam
+  await inserir('900.000.000-06', 'Recepcionista', null, 'a6@x.com');
+});
+
+test('npm run setup recusa banco antigo com Médico sem registro, sem alterar os dados', { ...opcoes, timeout: 60_000 }, async (t) => {
+  const esquema = await criarEsquema();
+  t.after(() => esquema.remover());
+  // Simula um banco criado antes da regra: sem a restrição e com um médico sem CRM.
+  await esquema.query('ALTER TABLE profissional DROP CONSTRAINT profissional_registro_obrigatorio_chk');
+  await esquema.query("UPDATE profissional SET registro_conselho = NULL WHERE id_profissional = 3");
+  const saida = await executar('scripts/setup.js', envDoBanco({ schema: esquema.schema }), { timeout: 30_000 });
+  assert.equal(saida.codigo, 1, `o setup deveria falhar.\n${saida.stdout}\n${saida.stderr}`);
+  assert.match(saida.stderr, /id 3 - Ricardo Oliveira \(Medico\)/, 'a mensagem deveria listar o médico sem registro');
+  assert.doesNotMatch(saida.stdout, /schema\.sql aplicado/, 'o schema.sql não deveria ter sido aplicado');
+  const { rows } = await esquema.query('SELECT registro_conselho FROM profissional WHERE id_profissional = 3');
+  assert.equal(rows[0].registro_conselho, null, 'o setup não pode alterar os dados sozinho');
 });
 
 test('ON DELETE RESTRICT: não apaga paciente nem profissional com atendimentos', opcoes, async (t) => {

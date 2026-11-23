@@ -164,6 +164,23 @@ function validarPessoa(data) {
   return Object.hasOwn(data, 'cpf') ? { ...data, cpf: normalizarCpf(data.cpf) } : data;
 }
 
+// Registro no conselho (CRM/COREN): gravado sem espaços nas pontas e em maiúsculas,
+// para " crm1" e "CRM1" serem o mesmo registro. Vazio vira NULL.
+const CARGOS_COM_REGISTRO = ['Medico', 'Enfermeiro'];
+const MSG_REGISTRO = 'Informe o registro no conselho (CRM/COREN) para este cargo';
+
+function normalizarRegistro(data) {
+  if (!Object.hasOwn(data, 'registro_conselho')) return data;
+  const valor = data.registro_conselho;
+  const texto = valor === undefined || valor === null ? '' : String(valor).trim().toUpperCase();
+  return { ...data, registro_conselho: texto || null };
+}
+
+// Confere a regra com os dados finais do profissional (cargo e registro).
+function exigirRegistro(cargo, registro) {
+  if (CARGOS_COM_REGISTRO.includes(cargo) && !registro) throw invalid(MSG_REGISTRO);
+}
+
 function selectedFields(config) {
   return [config.id, ...config.fields.filter((field) => field !== 'senha')];
 }
@@ -280,6 +297,8 @@ export class PostgresRepository {
     if (['pacientes', 'profissionais'].includes(entidade)) dados = validarPessoa(dados);
     if (entidade === 'profissionais') {
       if (typeof dados.email !== 'string') throw invalid('Email inválido');
+      dados = normalizarRegistro(dados);
+      exigirRegistro(dados.cargo, dados.registro_conselho);
       dados = { ...dados, senha: await hashPassword(dados.senha), email: dados.email.trim().toLowerCase() };
     }
     const fields = config.fields.filter((field) => Object.hasOwn(dados, field));
@@ -304,6 +323,14 @@ export class PostgresRepository {
     const config = ENTITIES[entidade];
     validate(config, dados);
     if (['pacientes', 'profissionais'].includes(entidade)) dados = validarPessoa(dados);
+    if (entidade === 'profissionais' &&
+        (Object.hasOwn(dados, 'cargo') || Object.hasOwn(dados, 'registro_conselho'))) {
+      dados = normalizarRegistro(dados);
+      const atual = await this.buscarPorId('profissionais', id);
+      if (!atual) return null;
+      exigirRegistro(dados.cargo ?? atual.cargo,
+        Object.hasOwn(dados, 'registro_conselho') ? dados.registro_conselho : atual.registro_conselho);
+    }
     if (entidade === 'profissionais' && Object.hasOwn(dados, 'senha')) {
       dados = { ...dados, senha: await hashPassword(dados.senha) };
     }
@@ -513,4 +540,4 @@ export class PostgresRepository {
   }
 }
 
-export { ENTITIES };
+export { ENTITIES, MSG_REGISTRO };

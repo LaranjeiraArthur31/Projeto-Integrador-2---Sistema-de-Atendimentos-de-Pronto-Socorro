@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  SEM_BANCO, ambienteDoTeste, atender, cpfAleatorio, criarAtendimento, emailAleatorio, esperarStatus, triar
+  SEM_BANCO, ambienteDoTeste, atender, cpfAleatorio, criarAtendimento, emailAleatorio, esperarStatus, registroAleatorio, triar
 } from '../helpers/ambiente.js';
 
 const opcoes = { skip: SEM_BANCO };
@@ -66,7 +66,8 @@ test('cadastro e login com nome e senha acentuados', opcoes, async (t) => {
   const email = emailAleatorio();
   const senha = 'Coração—çã😀1';
   const criado = esperarStatus(await amb.cliente().post('/auth/cadastro', {
-    nome_completo: 'Conceição Araújo — Enfermagem', cpf: cpfAleatorio(), cargo: 'Enfermeiro', email, senha
+    nome_completo: 'Conceição Araújo — Enfermagem', cpf: cpfAleatorio(), cargo: 'Enfermeiro',
+    registro_conselho: registroAleatorio(), email, senha
   }), 201).dados;
   assert.equal(criado.nome_completo, 'Conceição Araújo — Enfermagem');
   const login = esperarStatus(await amb.cliente().post('/auth/login', { email, senha }), 200, 'login com senha acentuada');
