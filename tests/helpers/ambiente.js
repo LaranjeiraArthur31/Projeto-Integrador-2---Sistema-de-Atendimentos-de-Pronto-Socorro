@@ -208,6 +208,11 @@ export function emailAleatorio() {
   return `teste.${randomUUID().slice(0, 8)}@exemplo.test`;
 }
 
+// Registro no conselho único por chamada (o par cargo + registro não pode se repetir).
+export function registroAleatorio(prefixo = 'COREN') {
+  return `${prefixo}${randomUUID().slice(0, 8).toUpperCase()}`;
+}
+
 export function dadosPaciente(extra = {}) {
   return {
     nome: 'Paciente de Teste', cpf: cpfAleatorio(), rg: '12.345.678-9', mae: 'Mãe de Teste',

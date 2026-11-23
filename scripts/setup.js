@@ -17,6 +17,44 @@ async function existe(arquivo) {
   try { await access(arquivo); return true; } catch { return false; }
 }
 
+// Antes de aplicar o schema.sql: Médico/Enfermeiro sem registro (ou com registro repetido)
+// fariam a nova regra do banco falhar. Mostra quem precisa ser corrigido; não altera dados.
+async function conferirRegistros(client) {
+  const { rows: [tabela] } = await client.query("SELECT to_regclass('profissional') AS existe");
+  if (!tabela.existe) return; // banco novo: nada a conferir
+  const semRegistro = await client.query(`
+    SELECT id_profissional, nome_completo, cargo FROM profissional
+     WHERE cargo <> 'Recepcionista' AND NULLIF(btrim(registro_conselho), '') IS NULL
+     ORDER BY id_profissional`);
+  const repetidos = await client.query(`
+    SELECT id_profissional, nome_completo, cargo, registro_conselho FROM profissional p
+     WHERE registro_conselho IS NOT NULL AND EXISTS (
+       SELECT 1 FROM profissional o WHERE o.cargo = p.cargo
+          AND o.registro_conselho = p.registro_conselho AND o.id_profissional <> p.id_profissional)
+     ORDER BY cargo, registro_conselho, id_profissional`);
+  if (!semRegistro.rowCount && !repetidos.rowCount) return;
+
+  const linhas = [];
+  if (semRegistro.rowCount) {
+    linhas.push('Profissionais com cargo Medico/Enfermeiro sem registro no conselho (CRM/COREN):');
+    for (const p of semRegistro.rows) linhas.push(`  id ${p.id_profissional} - ${p.nome_completo} (${p.cargo})`);
+  }
+  if (repetidos.rowCount) {
+    linhas.push('Profissionais com o mesmo registro no conselho para o mesmo cargo:');
+    for (const p of repetidos.rows) {
+      linhas.push(`  id ${p.id_profissional} - ${p.nome_completo} (${p.cargo}, registro ${p.registro_conselho})`);
+    }
+  }
+  linhas.push(
+    '',
+    'Corrija esses cadastros e rode "npm run setup" de novo. Exemplo (pgAdmin ou psql):',
+    "  UPDATE profissional SET registro_conselho = 'CRM12345' WHERE id_profissional = <id>;",
+    'Também é possível trocar o cargo para Recepcionista ou apagar o profissional, se ele não tiver atendimentos.',
+    'O setup não altera nem apaga esses dados sozinho.'
+  );
+  throw Object.assign(new Error(linhas.join('\n')), { amigavel: true });
+}
+
 async function main() {
   if (!(await existe(arquivoEnv))) {
     await copyFile(path.join(raiz, '.env.example'), arquivoEnv);
@@ -55,6 +93,7 @@ async function main() {
     const client = new pg.Client({ ...config, connectionTimeoutMillis: 5000 });
     await client.connect();
     try {
+      await conferirRegistros(client);
       for (const arquivo of ['schema.sql', 'insert.sql']) {
         const sql = await readFile(path.join(raiz, 'database', arquivo), 'utf8');
         await client.query(sql);

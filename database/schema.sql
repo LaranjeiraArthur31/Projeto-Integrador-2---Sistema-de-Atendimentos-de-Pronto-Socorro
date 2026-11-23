@@ -23,12 +23,19 @@ CREATE TABLE IF NOT EXISTS profissional (
     nome_completo VARCHAR(100) NOT NULL,
     cpf VARCHAR(14) NOT NULL UNIQUE,
     cargo VARCHAR(20) NOT NULL CHECK (cargo IN ('Medico', 'Enfermeiro', 'Recepcionista')),
-    registro_conselho VARCHAR(20), -- CRM para médicos, COREN para enfermeiros
+    registro_conselho VARCHAR(20), -- CRM para médicos, COREN para enfermeiros (obrigatório para esses cargos)
     especialidade VARCHAR(50),
     email VARCHAR(150) NOT NULL UNIQUE,
     senha VARCHAR(255) NOT NULL,
     ativo BOOLEAN NOT NULL DEFAULT TRUE
 );
+
+-- Regra do registro no conselho, aplicada também a bancos já criados:
+-- Médico e Enfermeiro precisam de registro; o par (cargo, registro) não se repete.
+ALTER TABLE profissional DROP CONSTRAINT IF EXISTS profissional_registro_obrigatorio_chk;
+ALTER TABLE profissional ADD CONSTRAINT profissional_registro_obrigatorio_chk
+    CHECK (cargo = 'Recepcionista' OR NULLIF(btrim(registro_conselho), '') IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_profissional_cargo_registro ON profissional (cargo, registro_conselho);
 
 -- 3. Tabela de Atendimentos
 CREATE TABLE IF NOT EXISTS atendimento (

@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ENTITIES } from './repository.js';
+import { ENTITIES, MSG_REGISTRO } from './repository.js';
 import { createAuth, HOME_BY_ROLE } from './auth.js';
 
 const webPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../web');
@@ -10,6 +10,13 @@ function sendError(res, error) {
   if (error.code === 'FORBIDDEN') return res.status(403).json({ erro: error.message });
   if (error.message === 'Registro não encontrado' || error.message === 'Atendimento não encontrado') {
     return res.status(404).json({ erro: error.message });
+  }
+  // Regras do registro no conselho (CRM/COREN), com mensagem própria.
+  if (error.code === '23505' && error.constraint === 'ux_profissional_cargo_registro') {
+    return res.status(409).json({ erro: 'Este registro no conselho (CRM/COREN) já está cadastrado para este cargo' });
+  }
+  if (error.code === '23514' && error.constraint === 'profissional_registro_obrigatorio_chk') {
+    return res.status(400).json({ erro: MSG_REGISTRO });
   }
   if (['23505', '23503'].includes(error.code)) {
     return res.status(409).json({ erro: 'O registro viola uma restrição de unicidade ou relacionamento' });

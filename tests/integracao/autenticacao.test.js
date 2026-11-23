@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  SEM_BANCO, USUARIOS, ambienteDoTeste, cpfAleatorio, emailAleatorio, esperarStatus
+  SEM_BANCO, USUARIOS, ambienteDoTeste, cpfAleatorio, emailAleatorio, esperarStatus, registroAleatorio
 } from '../helpers/ambiente.js';
 
 const opcoes = { skip: SEM_BANCO };
@@ -10,9 +10,63 @@ const opcoes = { skip: SEM_BANCO };
 function cadastro(extra = {}) {
   return {
     nome_completo: 'Profissional de Teste', cpf: cpfAleatorio(), cargo: 'Enfermeiro',
-    registro_conselho: 'COREN99999', email: emailAleatorio(), senha: 'SenhaForte123', ...extra
+    registro_conselho: registroAleatorio(), email: emailAleatorio(), senha: 'SenhaForte123', ...extra
   };
 }
+
+// ---------- Registro no conselho (CRM/COREN) ----------
+
+test('Médico sem registro no conselho é recusado com 400', opcoes, async (t) => {
+  const amb = await ambienteDoTeste(t);
+  const semRegistro = cadastro({ cargo: 'Medico' });
+  delete semRegistro.registro_conselho;
+  for (const dados of [semRegistro, cadastro({ cargo: 'Medico', registro_conselho: null }), cadastro({ cargo: 'Medico', registro_conselho: '' })]) {
+    const resposta = esperarStatus(await amb.cliente().post('/auth/cadastro', dados), 400, 'Médico sem registro');
+    assert.equal(resposta.erro, 'Informe o registro no conselho (CRM/COREN) para este cargo');
+  }
+});
+
+test('Enfermeiro com registro só de espaços é recusado com 400', opcoes, async (t) => {
+  const amb = await ambienteDoTeste(t);
+  const resposta = esperarStatus(await amb.cliente().post('/auth/cadastro', cadastro({ registro_conselho: '    ' })), 400);
+  assert.equal(resposta.erro, 'Informe o registro no conselho (CRM/COREN) para este cargo');
+});
+
+test('Recepcionista pode se cadastrar sem registro no conselho', opcoes, async (t) => {
+  const amb = await ambienteDoTeste(t);
+  const semRegistro = cadastro({ cargo: 'Recepcionista' });
+  delete semRegistro.registro_conselho;
+  const resposta = esperarStatus(await amb.cliente().post('/auth/cadastro', semRegistro), 201, 'recepcionista sem registro');
+  assert.equal(resposta.dados.registro_conselho, null);
+  // Vazio vira NULL, então duas recepcionistas sem registro não conflitam.
+  esperarStatus(await amb.cliente().post('/auth/cadastro', cadastro({ cargo: 'Recepcionista', registro_conselho: ' ' })), 201, 'recepcionista com registro vazio');
+});
+
+test('mesmo cargo e mesmo registro no conselho devolve 409 (também com espaços e minúsculas)', opcoes, async (t) => {
+  const amb = await ambienteDoTeste(t);
+  const registro = registroAleatorio('CRM');
+  esperarStatus(await amb.cliente().post('/auth/cadastro', cadastro({ cargo: 'Medico', registro_conselho: registro })), 201);
+  for (const repetido of [registro, ` ${registro.toLowerCase()} `]) {
+    const resposta = esperarStatus(await amb.cliente().post('/auth/cadastro', cadastro({ cargo: 'Medico', registro_conselho: repetido })), 409, `registro repetido "${repetido}"`);
+    assert.equal(resposta.erro, 'Este registro no conselho (CRM/COREN) já está cadastrado para este cargo');
+  }
+  esperarStatus(await amb.cliente().post('/auth/cadastro', cadastro({ cargo: 'Enfermeiro', registro_conselho: 'COREN12345' })), 409, 'COREN da demonstração');
+});
+
+test('o mesmo registro com cargos diferentes é aceito', opcoes, async (t) => {
+  const amb = await ambienteDoTeste(t);
+  const registro = registroAleatorio('REG');
+  esperarStatus(await amb.cliente().post('/auth/cadastro', cadastro({ cargo: 'Medico', registro_conselho: registro })), 201, 'como Médico');
+  esperarStatus(await amb.cliente().post('/auth/cadastro', cadastro({ cargo: 'Enfermeiro', registro_conselho: registro })), 201, 'como Enfermeiro');
+});
+
+test('registro no conselho é gravado sem espaços e em maiúsculas', opcoes, async (t) => {
+  const amb = await ambienteDoTeste(t);
+  const resposta = esperarStatus(await amb.cliente().post('/auth/cadastro', cadastro({ cargo: 'Medico', registro_conselho: ' crm777 ' })), 201);
+  assert.equal(resposta.dados.registro_conselho, 'CRM777');
+  const { rows } = await amb.query('SELECT registro_conselho FROM profissional WHERE id_profissional = $1', [resposta.dados.id_profissional]);
+  assert.equal(rows[0].registro_conselho, 'CRM777');
+});
 
 // ---------- Cadastro ----------
 
