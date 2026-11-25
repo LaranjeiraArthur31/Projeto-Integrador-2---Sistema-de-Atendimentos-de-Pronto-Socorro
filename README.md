@@ -2,6 +2,15 @@
 
 Projeto Integrador 2 da PUC-Campinas. É um sistema web que acompanha o paciente dentro do pronto-socorro: ele é cadastrado na recepção, passa pela triagem (Protocolo de Manchester), aparece no painel de chamada e é atendido pelo médico.
 
+## Integrantes
+
+* Arthur Lopes Laranjeiras
+* Gabriel Henrique Rocha
+* Igor Mastrangelo Domingos
+* Jorge Rodrigues dos Santos Neto
+* Maximus Daniel Nascimento
+
+
 ## O que precisa ter instalado
 
 - [Node.js](https://nodejs.org/) 20 ou mais novo
